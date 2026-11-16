@@ -1,0 +1,8 @@
+module.exports = {
+  MIN_PLAYERS: 3,
+  MAX_PLAYERS: 8,
+  LOBBY_SECONDS: 60,
+  CLUE_SECONDS: 60,
+  FINAL_SECONDS: 90,
+  CLUE_COUNT: 4,
+};

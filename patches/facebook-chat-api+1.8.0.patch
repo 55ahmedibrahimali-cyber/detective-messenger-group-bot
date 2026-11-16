@@ -1,0 +1,28 @@
+diff --git a/node_modules/facebook-chat-api/src/e2ee/client.js b/node_modules/facebook-chat-api/src/e2ee/client.js
+index e6acf3c..83e4c40 100644
+--- a/node_modules/facebook-chat-api/src/e2ee/client.js
++++ b/node_modules/facebook-chat-api/src/e2ee/client.js
+@@ -836,6 +836,9 @@ E2EEClient.prototype.getServerPreKeyCount = function() {
+ E2EEClient.prototype.uploadPreKeys = function(count) {
+   var preKeys = this.store.generatePreKeys(count);
+   var signed = this.store.rotateSignedPreKey();
++  // Persist the private key before advertising it so restarts can decrypt
++  // messages encrypted with this signed-prekey ID.
++  this.store.save();
+   var payload = encodePreKeyUpload(
+     this.nextId("pk-"),
+     this.store.registrationId,
+@@ -853,7 +856,12 @@ E2EEClient.prototype.syncPreKeys = function() {
+   return self
+     .getServerPreKeyCount()
+     .then(function(count) {
+-      if (count < MIN_PREKEY_COUNT) return self.uploadPreKeys(PREKEY_UPLOAD_COUNT);
++      var signedPreKeyIds = Object.keys(self.store.signedPreKeys || {});
++      var hasUnpersistedRotation =
++        Number(self.store.nextPreKeyId) > 1 && signedPreKeyIds.length === 1;
++      if (count < MIN_PREKEY_COUNT || hasUnpersistedRotation) {
++        return self.uploadPreKeys(PREKEY_UPLOAD_COUNT);
++      }
+     })
+     .catch(function(err) {
+       log.warn("e2ee", "Prekey sync failed: " + err.message);

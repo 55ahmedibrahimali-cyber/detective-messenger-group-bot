@@ -1,0 +1,9 @@
+module.exports = Object.freeze({
+  MIN_PLAYERS: 4,
+  MAX_PLAYERS: 8,
+  LOBBY_SECONDS: 60,
+  ROUND_SECONDS: 90,
+  ROUND_COUNT: 3,
+  STARTING_COINS: 10,
+  MAX_OFFER_PRICE: 10,
+});

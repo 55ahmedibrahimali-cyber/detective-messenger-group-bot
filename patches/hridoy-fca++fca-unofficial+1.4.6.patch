@@ -1,0 +1,26 @@
+diff --git a/node_modules/hridoy-fca/node_modules/fca-unofficial/src/index.js b/node_modules/hridoy-fca/node_modules/fca-unofficial/src/index.js
+index bf0869b..3ac5586 100644
+--- a/node_modules/hridoy-fca/node_modules/fca-unofficial/src/index.js
++++ b/node_modules/hridoy-fca/node_modules/fca-unofficial/src/index.js
+@@ -191,10 +191,9 @@ function bypassAutoBehavior(res, jar, appState, globalOptions) {
+ }
+ 
+ function getNextPhMidnightDelayMs() {
+-  var now = new Date();
+-  var nowUtcMs = now.getTime() + now.getTimezoneOffset() * 60 * 1000;
++  var now = Date.now();
+   var phOffsetMs = 8 * 60 * 60 * 1000;
+-  var phNow = new Date(nowUtcMs + phOffsetMs);
++  var phNow = new Date(now + phOffsetMs);
+   var nextPhMidnightUtcMs = Date.UTC(
+     phNow.getUTCFullYear(),
+     phNow.getUTCMonth(),
+@@ -205,7 +204,7 @@ function getNextPhMidnightDelayMs() {
+     0
+   ) - phOffsetMs;
+ 
+-  return Math.max(1000, nextPhMidnightUtcMs - now.getTime());
++  return Math.max(1000, nextPhMidnightUtcMs - now);
+ }
+ 
+ function scheduleFbDtsgRefresh(api, ctx) {

@@ -1,0 +1,181 @@
+diff --git a/node_modules/hridoy-fca/src/api/messaging/uploadAttachment.js b/node_modules/hridoy-fca/src/api/messaging/uploadAttachment.js
+index a7e55c5..c713c33 100644
+--- a/node_modules/hridoy-fca/src/api/messaging/uploadAttachment.js
++++ b/node_modules/hridoy-fca/src/api/messaging/uploadAttachment.js
+@@ -181,7 +181,20 @@ async function normalizeOne(input, ua) {
+     throw new Error(`Unsupported string input: ${input}`);
+   }
+   if (isReadableStream(input)) {
+-    return { stream: input, filename: `file-${Date.now()}` };
++    const filename =
++      input.filename ||
++      (input.path ? path.basename(input.path) : `file-${Date.now()}`);
++    const extension = path.extname(filename).toLowerCase();
++    const contentType =
++      input.contentType ||
++      (extension === ".jpg" || extension === ".jpeg"
++        ? "image/jpeg"
++        : extension === ".webp"
++          ? "image/webp"
++          : extension === ".png"
++            ? "image/png"
++            : undefined);
++    return { stream: input, filename, contentType };
+   }
+   if (typeof input === "object") {
+     if (input.buffer && Buffer.isBuffer(input.buffer)) {
+diff --git a/node_modules/hridoy-fca/src/api/socket/core/connectMqtt.js b/node_modules/hridoy-fca/src/api/socket/core/connectMqtt.js
+index 329b410..837e02c 100644
+--- a/node_modules/hridoy-fca/src/api/socket/core/connectMqtt.js
++++ b/node_modules/hridoy-fca/src/api/socket/core/connectMqtt.js
+@@ -7,7 +7,7 @@ const { formatID } = require("../../../utils/format");
+ const { getDefaultUserAgent } = require("../../../utils/fingerprint");
+ 
+ const DEFAULT_RECONNECT_DELAY_MS = 2000;
+-const T_MS_WAIT_TIMEOUT_MS = 5000;
++const T_MS_WAIT_TIMEOUT_MS = 8000;
+ 
+ module.exports = function createListenMqtt(deps) {
+   const { WebSocket, mqtt, HttpsProxyAgent, buildStream, buildProxy,
+@@ -88,7 +88,7 @@ module.exports = function createListenMqtt(deps) {
+       keepalive: 30,
+       reschedulePings: true,
+       reconnectPeriod: 0,
+-      connectTimeout: 5000
++      connectTimeout: 12000
+     };
+     if (ctx.globalOptions.proxy !== undefined) {
+       const agent = new HttpsProxyAgent(ctx.globalOptions.proxy);
+@@ -148,48 +148,58 @@ module.exports = function createListenMqtt(deps) {
+       }
+       ctx._cycling = false;
+ 
+-      topics.forEach(t => mqttClient.subscribe(t));
+-
+-
+-      const queue = {
+-        sync_api_version: 11, max_deltas_able_to_process: 100, delta_batch_size: 500,
+-        encoding: "JSON", entity_fbid: ctx.userID, initial_titan_sequence_id: ctx.lastSeqId, device_params: null
+-      };
+-      const topic = ctx.syncToken ? "/messenger_sync_get_diffs" : "/messenger_sync_create_queue";
+-      if (ctx.syncToken) { queue.last_seq_id = ctx.lastSeqId; queue.sync_token = ctx.syncToken; }
+-      mqttClient.publish(topic, JSON.stringify(queue), { qos: 1, retain: false });
+-      mqttClient.publish("/foreground_state", JSON.stringify({ foreground: chatOn }), { qos: 1 });
+-      mqttClient.publish("/set_client_settings", JSON.stringify({ make_user_available_when_in_foreground: true }), { qos: 1 });
+-      const d = (ctx._mqttOpt && ctx._mqttOpt.reconnectDelayMs) || DEFAULT_RECONNECT_DELAY_MS;
+-      let rTimeout = setTimeout(function () {
+-        rTimeout = null;
+-        if (ctx._ending) {
+-          logger("mqtt t_ms timeout skipped - ending", "warn");
++      mqttClient.subscribe(topics, function (err, granted) {
++        if (ctx._ending) return;
++        const rejected = Array.isArray(granted) && granted.some(subscription => subscription.qos === 128);
++        if (err || rejected) {
++          const message = err ? String(err.message || err) : "broker rejected one or more subscriptions";
++          logger(`mqtt subscribe failed: ${message}`, "error");
++          if (!ctx.globalOptions.autoReconnect) {
++            globalCallback({ type: "stop_listen", error: message }, null);
++          }
++          mqttClient.end(true);
+           return;
+         }
+-        logger(`mqtt t_ms timeout, cycling in ${d}ms`, "warn");
+-        try {
+-          if (mqttClient && mqttClient.connected) {
+-            mqttClient.end(true);
++
++        const queue = {
++          sync_api_version: 11, max_deltas_able_to_process: 100, delta_batch_size: 500,
++          encoding: "JSON", entity_fbid: ctx.userID, initial_titan_sequence_id: ctx.lastSeqId, device_params: null
++        };
++        const topic = ctx.syncToken ? "/messenger_sync_get_diffs" : "/messenger_sync_create_queue";
++        if (ctx.syncToken) { queue.last_seq_id = ctx.lastSeqId; queue.sync_token = ctx.syncToken; }
++        mqttClient.publish(topic, JSON.stringify(queue), { qos: 1, retain: false });
++        mqttClient.publish("/foreground_state", JSON.stringify({ foreground: chatOn }), { qos: 1 });
++        mqttClient.publish("/set_client_settings", JSON.stringify({ make_user_available_when_in_foreground: true }), { qos: 1 });
++        const d = (ctx._mqttOpt && ctx._mqttOpt.reconnectDelayMs) || DEFAULT_RECONNECT_DELAY_MS;
++        let rTimeout = setTimeout(function () {
++          rTimeout = null;
++          if (ctx._ending) {
++            logger("mqtt t_ms timeout skipped - ending", "warn");
++            return;
+           }
+-        } catch (_) { }
+-        scheduleReconnect(d);
+-      }, T_MS_WAIT_TIMEOUT_MS);
++          logger(`mqtt t_ms timeout, cycling in ${d}ms`, "warn");
++          try {
++            if (mqttClient && mqttClient.connected) {
++              mqttClient.end(true);
++            }
++          } catch (_) { }
++          scheduleReconnect(d);
++        }, T_MS_WAIT_TIMEOUT_MS);
+ 
+-      // Store timeout reference for cleanup
+-      ctx._rTimeout = rTimeout;
++        ctx._rTimeout = rTimeout;
+ 
+-      ctx.tmsWait = function () {
+-        if (rTimeout) {
+-          clearTimeout(rTimeout);
+-          rTimeout = null;
+-        }
+-        if (ctx._rTimeout) {
+-          delete ctx._rTimeout;
+-        }
+-        if (ctx.globalOptions.emitReady) globalCallback({ type: "ready", error: null });
+-        delete ctx.tmsWait;
+-      };
++        ctx.tmsWait = function () {
++          if (rTimeout) {
++            clearTimeout(rTimeout);
++            rTimeout = null;
++          }
++          if (ctx._rTimeout) {
++            delete ctx._rTimeout;
++          }
++          if (ctx.globalOptions.emitReady) globalCallback({ type: "ready", error: null });
++          delete ctx.tmsWait;
++        };
++      });
+     });
+ 
+     mqttClient.on("message", function (topic, message) {
+diff --git a/node_modules/hridoy-fca/src/api/socket/e2ee/index.js b/node_modules/hridoy-fca/src/api/socket/e2ee/index.js
+index dff2d9f..376ccbd 100644
+--- a/node_modules/hridoy-fca/src/api/socket/e2ee/index.js
++++ b/node_modules/hridoy-fca/src/api/socket/e2ee/index.js
+@@ -598,11 +598,15 @@ class E2EEBridge {
+ 
+             this._knownE2EEGroups = this._knownE2EEGroups || new Set();
+             const isGroupAttachment = this._knownE2EEGroups.has(String(threadId));
++            const useNativeDmImage =
++                !isGroupAttachment &&
++                mediaType === "image" &&
++                process.env.FCA_E2EE_NATIVE_DM_IMAGES === "1";
+ 
+             const appState = this.api.getAppState();
+             let result;
+             try {
+-                if (!_nativeMediaEnabled()) {
++                if (!_nativeMediaEnabled() && !useNativeDmImage) {
+                     throw new Error("native engine disabled (FCA_E2EE_NATIVE=0) — see native-group note");
+                 }
+                 result = await nativeMediaBridge.sendMedia(appState, threadId, mediaType, data, mimeType, {
+@@ -614,11 +618,10 @@ class E2EEBridge {
+                     isGroup: isGroupAttachment
+                 });
+             } catch (nativeErr) {
+-                if (isGroupAttachment) {
+-                    // Vendor's own group Sender-Key encryption is confirmed broken
+-                    // (see the native-group message listener above) — falling back
+-                    // to it here would just fail the same way, so don't bother.
+-                    logger.error("E2EE", "[native-media] group attachment send failed, no fallback available for groups: " +
++                if (isGroupAttachment || useNativeDmImage) {
++                    // Keep these opted-in routes on native E2EE; a plaintext
++                    // legacy fallback would not preserve their delivery guarantees.
++                    logger.error("E2EE", `[native-media] ${isGroupAttachment ? "group attachment" : "private image"} send failed; refusing legacy fallback: ` +
+                         (nativeErr && nativeErr.message ? nativeErr.message : String(nativeErr)));
+                     throw nativeErr;
+                 }

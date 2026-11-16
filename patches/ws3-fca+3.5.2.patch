@@ -1,0 +1,28 @@
+diff --git a/node_modules/ws3-fca/src/utils/clients.js b/node_modules/ws3-fca/src/utils/clients.js
+index 548b15f..250defb 100644
+--- a/node_modules/ws3-fca/src/utils/clients.js
++++ b/node_modules/ws3-fca/src/utils/clients.js
+@@ -38,7 +38,8 @@ function parseAndCheckLogin(ctx, http, retryCount = 0) {
+ 
+       await delay(retryTime);
+ 
+-      if (data.request.headers["content-type"].split(";")[0] === "multipart/form-data") {
++      const contentType = data.request?.headers?.["content-type"] || "";
++      if (contentType.split(";")[0] === "multipart/form-data") {
+         const newData = await http.postFormData(
+           url,
+           ctx.jar,
+diff --git a/node_modules/ws3-fca/src/utils/formatters.js b/node_modules/ws3-fca/src/utils/formatters.js
+index e9b7596..c951b0c 100644
+--- a/node_modules/ws3-fca/src/utils/formatters.js
++++ b/node_modules/ws3-fca/src/utils/formatters.js
+@@ -819,7 +819,8 @@ function formatDeltaMessage(m) {
+                                                         const retryTime = Math.floor(Math.random() * 5000);
+                                                         console.warn("parseAndCheckLogin", "Got status code " + data.statusCode + " - " + retryCount + ". attempt to retry in " + retryTime + " milliseconds...");
+                                                         const url = data.request.uri.protocol + "//" + data.request.uri.hostname + data.request.uri.pathname;
+-                                                        if (data.request.headers["content-type"].split(";")[0] === "multipart/form-data") {
++                                                        const contentType = data.request && data.request.headers && data.request.headers["content-type"] || "";
++                                                        if (contentType.split(";")[0] === "multipart/form-data") {
+                                                             return delay(retryTime)
+                                                             .then(function() {
+                                                                 return http

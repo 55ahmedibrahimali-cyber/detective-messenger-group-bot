@@ -1,0 +1,39 @@
+{
+  "name": "detective-messenger-group-bot",
+  "version": "2.0.0",
+  "description": "Social deduction detective game for Messenger GROUP chats (FCA / MQTT, unofficial)",
+  "main": "server.js",
+  "scripts": {
+    "postinstall": "patch-package",
+    "db:setup": "node setupDatabase.js",
+    "test": "node --test",
+    "start": "node server.js",
+    "start:telegram": "node telegram.js",
+    "db:setup:telegram": "node telegram.js --setup-db",
+    "patterns": "node scripts/crimePatterns.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@fal-ai/client": "^1.11.0",
+    "@gradio/client": "^2.8.0",
+    "axios": "^1.7.0",
+    "biar-fca": "3.9.5",
+    "dotenv": "^16.4.0",
+    "fca-unofficial": "1.3.10",
+    "hridoy-fca": "4.4.0",
+    "jpeg-js": "^0.4.4",
+    "mysql2": "^3.11.0",
+    "patch-package": "^8.0.1",
+    "pngjs": "^7.0.0",
+    "sharp": "^0.35.5",
+    "upscayl-node": "3.1.1",
+    "ws3-fca": "3.5.2"
+  },
+  "optionalDependencies": {
+    "@dongdev/fca-unofficial": "^4.0.3",
+    "facebook-chat-api": "github:bhhoang/fbapi-unofficial#a95fe05b201a4f33cc7a7a35efb34381fb76b947",
+    "fca-azadx69x": "^3.0.1"
+  }
+}

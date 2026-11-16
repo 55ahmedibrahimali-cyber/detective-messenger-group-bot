@@ -1,0 +1,11 @@
+# ===== حماية الحساب (ضعها في .env وعدّل القيم القديمة بدل ما تكررها) =====
+SEND_DELAY_MIN_MS=2500
+SEND_DELAY_MAX_MS=6000
+MAX_SENDS_PER_MINUTE=12
+MAX_SENDS_PER_HOUR=200
+MAX_SENDS_PER_DAY=1200
+# 1 = لا يبعت خاص إلا لمن بدأ محادثة مع البوت (أحمى) | 0 = يرجع للسلوك القديم
+STRICT_PRIVATE=1
+# اختياري: ساعات هدوء بتوقيت جهاز التشغيل، مثال 3-7
+QUIET_HOURS=
+AUTO_ACCEPT_REQUESTS=true

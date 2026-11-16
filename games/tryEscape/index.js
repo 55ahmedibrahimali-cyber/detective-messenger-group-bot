@@ -1,0 +1,30 @@
+const engine = require("./engine");
+
+module.exports = {
+  id: "try-escape",
+  name: "حاول تهرب",
+  startCommand: "حاول تهرب",
+  helpCommand: "قواعد حاول تهرب",
+  startAliases: ["حاول تهرب", "حاول_تهرب", "حاولتهرب", "tryescape"],
+  commandAliases: [
+    "قواعدحاولتهرب",
+    "قواعد حاول تهرب",
+    "tryescapehelp",
+    "خروجتهرب",
+    "خروج تهرب",
+    "leavetryescape",
+    "إلغاءتهرب",
+    "إلغاء تهرب",
+    "الغاءتهرب",
+    "canceltryescape",
+    "استبعادتهرب",
+    "استبعاد تهرب",
+    "اطردتهرب",
+    "اطرد تهرب",
+    "kicktryescape",
+    "حالةتهرب",
+    "حالة تهرب",
+    "tryescapestatus",
+  ],
+  engine,
+};
