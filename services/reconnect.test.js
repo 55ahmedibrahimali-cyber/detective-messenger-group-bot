@@ -19,7 +19,8 @@ if (process.env.RECONNECT_CHILD === "1") {
   const stub = path.join(dir, "fca-stub.js");
   fs.writeFileSync(
     stub,
-    `module.exports = function login(creds, cb) {
+    `module.exports = function login(creds, options, cb) {
+      if (typeof options === "function") cb = options;
       global.__logins++;
       cb(null, {
         setOptions() {}, getCurrentUserID: () => "100000000000001",
@@ -44,6 +45,8 @@ if (process.env.RECONNECT_CHILD === "1") {
   process.env.FCA_MODULE = stub;
   process.env.APPSTATE_PATH = path.join(dir, "appstate.json");
   process.env.SAFETY_STATE_PATH = path.join(dir, "safety.json");
+  process.env.BOT_PROCESS_LOCK_PATH = path.join(dir, "bot.lock");
+  process.env.USER_AGENT = "test-browser-user-agent";
   process.env.LOGIN_MODE = "appstate";
   process.env.AUTO_ACCEPT_REQUESTS = "false";
   const messenger = require("./messengerFacebook");

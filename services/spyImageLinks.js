@@ -9,7 +9,16 @@ const MAX_TTL_SECONDS = 7 * 24 * 60 * 60;
 let secretPromise;
 
 function publicBaseUrl() {
-  const value = process.env.SPY_IMAGE_PUBLIC_BASE_URL?.trim();
+  const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN?.trim();
+  const value =
+    process.env.SPY_IMAGE_PUBLIC_BASE_URL?.trim() ||
+    process.env.PUBLIC_URL?.trim() ||
+    process.env.RENDER_EXTERNAL_URL?.trim() ||
+    (railwayDomain
+      ? /^[a-z][a-z\d+.-]*:\/\//i.test(railwayDomain)
+        ? railwayDomain
+        : `https://${railwayDomain}`
+      : "");
   if (!value) return null;
 
   let url;

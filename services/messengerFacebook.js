@@ -2,7 +2,7 @@
 // ⚠️ مخالف لشروط استخدام فيسبوك وقد يؤدي لقفل الحساب. استخدم حساباً مخصصاً للبوت فقط.
 //
 // نسخة محدّثة:
-//  - دخول بالكوكيز (appstate.json) أو بالإيميل/الباسورد (+ كود 2FA) عبر LOGIN_MODE
+//  - الدخول بالكوكيز افتراضياً، وكلمة المرور فقط عند اختيار LOGIN_MODE=password صراحةً
 //  - لا يكتب appstate.json إلا بعد ما يثبت إن الاتصال شغال (كان بيكتب فوق الكوكيز بحالة تالفة)
 //  - لو فيسبوك رفض الجلسة (Not logged in / 1357004) يوقف ويشرح الحل بدل ما يفضل يعيد المحاولة
 const fs = require("fs");
@@ -14,6 +14,7 @@ const util = require("util");
 const os = require("node:os");
 const fsp = require("node:fs/promises");
 const secureStore = require("./secureStore");
+const { acquireProcessLock } = require("./processLock");
 const { redact } = require("./logRedactor");
 const safety = require("./safety");
 const privateSendRetry = require("./privateSendRetry");
@@ -59,10 +60,11 @@ if (!login) {
 
 const APPSTATE_PATH =
   process.env.APPSTATE_PATH || path.join(__dirname, "..", "appstate.json");
-const LOGIN_MODE = (process.env.LOGIN_MODE || "appstate").toLowerCase(); // appstate | password | auto
+const LOGIN_MODE = (process.env.LOGIN_MODE || "appstate").toLowerCase();
 const FB_EMAIL = process.env.FB_EMAIL || "";
 const FB_PASSWORD = process.env.FB_PASSWORD || "";
-const USER_AGENT = process.env.USER_AGENT || ""; // اختياري
+const USER_AGENT = (process.env.USER_AGENT || "").trim();
+const HTTPS_PROXY = (process.env.HTTPS_PROXY || "").trim();
 const DELAY_MIN = Number(process.env.SEND_DELAY_MIN_MS) || 1200;
 const DELAY_MAX = Number(process.env.SEND_DELAY_MAX_MS) || 2800;
 
@@ -71,7 +73,12 @@ const MAX_QUEUE = Number(process.env.MAX_SEND_QUEUE) || 200;
 const IMAGE_RETRIES = Math.max(0, Number(process.env.SEND_IMAGE_RETRIES ?? 2));
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 25 * 1024 * 1024;
-const LOCK_PATH = path.join(__dirname, "..", ".nexca", "login-lock.json");
+const LOCK_PATH =
+  process.env.LOGIN_LOCK_PATH ||
+  path.join(__dirname, "..", ".nexca", "login-lock.json");
+const PROCESS_LOCK_PATH =
+  process.env.BOT_PROCESS_LOCK_PATH ||
+  path.join(__dirname, "..", ".nexca", "bot.lock");
 const LOCK_HOURS = Number(process.env.LOGIN_LOCK_HOURS) || 6;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -86,9 +93,8 @@ let reconnecting = false;
 let reconnectRequested = false;
 let healthy = false; // يبقى true بعد ما الاستماع يثبت بدون أخطاء
 let attachToken = 0;
-let forcePassword = false; // بعد رفض الكوكيز: محاولة واحدة بالإيميل/الباسورد
-let passwordFallbackUsed = false;
 let warnedPlainAppState = false;
+let releaseProcessLock = null;
 // إعادة الاتصال: نحاول أولاً إعادة الاستماع على نفس الجلسة (بدون login جديد)،
 // لأن كل login() جديد يُحتسب بداية جلسة عند فيسبوك وتكراره هو أكثر ما يسبب قيود الحساب.
 const MAX_SOFT_RETRIES = Math.max(0, Number(process.env.MQTT_SOFT_RETRIES ?? 3));
@@ -122,8 +128,6 @@ const FATAL =
   /checkpoint|login_approval|login[_ -]?blocked|locked|disabled|suspended|not logged in|1357004|1357001|1357031|retrieving userid/i;
 const BLOCKED_ACCOUNT =
   /checkpoint|login_approval|login[_ -]?blocked|locked|disabled|suspended/i;
-const REJECTED_SESSION =
-  /not logged in|1357004|1357001|1357031|retrieving userid|(?:appstate|sessions?|cookies?).{0,30}(?:expired|invalid|rejected)|(?:expired|invalid|rejected).{0,30}(?:appstate|sessions?|cookies?)/i;
 
 function explainMissingIdentityCookie() {
   if (LOGIN_MODE === "password") {
@@ -140,18 +144,6 @@ function explainMissingIdentityCookie() {
   );
   console.error(
     "افتح Facebook يدوياً بالحساب نفسه وأكمل أي تحقق ظاهر. بعد نجاح الدخول، صدّر appstate جديداً من الجلسة نفسها واستبدل الملف القديم. لا تعدّل قيم الكوكي يدوياً ولا ترسل ملف appstate لأي شخص.",
-  );
-}
-
-function shouldFallbackToPassword(error) {
-  const message = errText(error);
-  return Boolean(
-    LOGIN_MODE === "auto" &&
-      FB_EMAIL &&
-      FB_PASSWORD &&
-      !passwordFallbackUsed &&
-      !BLOCKED_ACCOUNT.test(message) &&
-      (error?.invalidAppState || REJECTED_SESSION.test(message)),
   );
 }
 
@@ -178,7 +170,6 @@ function writeLock(patch) {
 }
 
 function assertLoginAllowed() {
-  if (process.env.FORCE_LOGIN === "1") return;
   const lock = readLock();
   if (!lock || !lock.blockedUntil || Date.now() >= lock.blockedUntil) return;
   if (LOGIN_MODE === "password") {
@@ -208,23 +199,6 @@ function die(reason) {
     /checkpoint|login_approval|login[_ -]?blocked|locked|disabled|suspended/i.test(
       text,
     );
-  // الكوكيز فقط مرفوضة (انتهت/أُبطلت): نجرّب مرة واحدة بالإيميل والباسورد إن كانا مضبوطين
-  if (
-    !hardBlock &&
-    LOGIN_MODE === "auto" &&
-    FB_EMAIL &&
-    FB_PASSWORD &&
-    !passwordFallbackUsed
-  ) {
-    passwordFallbackUsed = true;
-    forcePassword = true;
-    reconnecting = false;
-    console.warn(
-      "[messenger] الكوكيز مرفوضة؛ محاولة واحدة فقط بالدخول بالإيميل/الباسورد...",
-    );
-    setTimeout(() => reconnect(), 1000);
-    return;
-  }
   writeLock({
     ts: Date.now(),
     blockedUntil: Date.now() + (hardBlock ? LOCK_HOURS * 3600000 : 30 * 60000),
@@ -1028,7 +1002,10 @@ function doLogin(creds) {
       resolve(a);
     };
     try {
-      if (USER_AGENT) login(creds, { userAgent: USER_AGENT }, cb);
+      const options = {};
+      if (USER_AGENT) options.userAgent = USER_AGENT;
+      if (HTTPS_PROXY) options.proxy = HTTPS_PROXY;
+      if (Object.keys(options).length) login(creds, options, cb);
       else login(creds, cb);
     } catch (e) {
       // خطأ حصل جوه المكتبة نفسها: نطبع الـ stack عشان نعرف أنهي ملف
@@ -1058,8 +1035,7 @@ function getAccountCookieStatus(appState) {
 
 async function loginOnce() {
   assertLoginAllowed();
-  const appState =
-    LOGIN_MODE === "password" || forcePassword ? null : readAppState();
+  const appState = LOGIN_MODE === "password" ? null : readAppState();
   let a;
   if (appState) {
     if (FCA_MODULES_WITH_APPSTATE_COOKIES.has(FCA_NAME)) {
@@ -1082,22 +1058,12 @@ async function loginOnce() {
       }
     }
     console.log("[messenger] الدخول بالكوكيز (appstate.json)...");
-    try {
-      a = await doLogin({ appState });
-    } catch (error) {
-      if (!shouldFallbackToPassword(error)) throw error;
-      passwordFallbackUsed = true;
-      forcePassword = true;
-      console.warn(
-        "[messenger] جلسة appstate مرفوضة؛ محاولة واحدة فقط ببيانات الدخول الاحتياطية...",
-      );
-      a = await doLogin({ email: FB_EMAIL, password: FB_PASSWORD });
-    }
-  } else if (FB_EMAIL && FB_PASSWORD && LOGIN_MODE !== "appstate") {
+    a = await doLogin({ appState });
+  } else if (FB_EMAIL && FB_PASSWORD && LOGIN_MODE === "password") {
     console.log("[messenger] الدخول بالإيميل والباسورد...");
     a = await doLogin({ email: FB_EMAIL, password: FB_PASSWORD });
   } else {
-    throw new Error(LOGIN_MODE === "appstate"
+    throw new Error(LOGIN_MODE !== "password"
       ? `وضع appstate مفعّل لكن لا يوجد ملف جلسة صالح في ${APPSTATE_PATH}`
       : "سجّل FB_EMAIL وFB_PASSWORD في .env لاستخدام تسجيل الدخول بكلمة المرور.");
   }
@@ -1204,7 +1170,6 @@ function attach() {
       reconnectBackoff = 5000;
       console.log("[messenger] الاتصال مستقر ✅");
       saveAppState();
-      forcePassword = false; // الجلسة الجديدة حُفظت؛ العودة للكوكيز في إعادة الاتصال القادمة
       if (readLock()?.blockedUntil) writeLock({ blockedUntil: 0 });
     }
   }, 45000);
@@ -1289,13 +1254,40 @@ function acceptRequests() {
 
 /** تسجيل الدخول وبدء استقبال الأحداث. onEvent(event) تُستدعى لكل حدث MQTT. */
 async function start(onEvent) {
+  if (!["appstate", "password", "auto"].includes(LOGIN_MODE)) {
+    throw new Error(
+      `LOGIN_MODE غير صالح: ${LOGIN_MODE}. استخدم appstate أو password.`,
+    );
+  }
+  if (LOGIN_MODE !== "password" && !USER_AGENT) {
+    throw new Error(
+      "USER_AGENT is required for appstate login; set the exact user-agent reported by the browser session that exported appstate.",
+    );
+  }
   handler = onEvent;
   if (LOGIN_MODE !== "password") secureStore.warnIfLoose(APPSTATE_PATH);
   secureStore.warnIfLoose(path.join(__dirname, "..", ".env"));
-  await loginOnce();
-  await connectE2EE();
-  attach();
-  console.log(`[messenger] logged in as ${selfId}`);
+  releaseProcessLock = acquireProcessLock(PROCESS_LOCK_PATH);
+  try {
+    await loginOnce();
+    await connectE2EE();
+    attach();
+    console.log(`[messenger] logged in as ${selfId}`);
+  } catch (error) {
+    if (BLOCKED_ACCOUNT.test(errText(error)) && !error.loginLocked) {
+      writeLock({
+        ts: Date.now(),
+        blockedUntil: Date.now() + LOCK_HOURS * 3600000,
+        reason: redact(errText(error)).slice(0, 200),
+      });
+      console.error(
+        "[messenger] تم رصد checkpoint أو login_blocked؛ أُوقف بدء البوت وسُجّل القفل. لا تُعد المحاولة تلقائياً؛ أكمل التحقق يدوياً أولاً.",
+      );
+    }
+    releaseProcessLock();
+    releaseProcessLock = null;
+    throw error;
+  }
   setInterval(saveAppState, 30 * 60 * 1000);
   if (process.env.AUTO_ACCEPT_REQUESTS !== "false") {
     // فحص طلبات الرسائل كل 3-5 دقائق (بدل كل دقيقة ثابتة): أقل نمطية وأقل طلبات على فيسبوك

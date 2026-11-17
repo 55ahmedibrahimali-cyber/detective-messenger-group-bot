@@ -18,6 +18,18 @@ function respond(res, status, message) {
   res.end(message);
 }
 
+function configuredPort() {
+  const rawPort =
+    process.env.PORT?.trim() ||
+    process.env.SERVER_PORT?.trim() ||
+    process.env.SPY_IMAGE_PORT?.trim() ||
+    "3000";
+  const port = Number(rawPort);
+  if (!Number.isInteger(port) || port < 0 || port > 65535)
+    throw new Error("PORT or SPY_IMAGE_PORT must be an integer between 0 and 65535.");
+  return port;
+}
+
 async function handleRequest(req, res) {
   if (await drawingWebServer.handleRequest(req, res)) return;
   let url;
@@ -72,9 +84,7 @@ async function startServer() {
   serverStarting = (async () => {
     const imageConfigured = imageLinks.isConfigured();
     if (imageConfigured) await imageLinks.validateConfig();
-    const port = Number(process.env.SPY_IMAGE_PORT || process.env.PORT || 3000);
-    if (!Number.isInteger(port) || port < 0 || port > 65535)
-      throw new Error("SPY_IMAGE_PORT must be an integer between 0 and 65535.");
+    const port = configuredPort();
 
     const nextServer = http.createServer((req, res) => {
       handleRequest(req, res).catch((error) => {
@@ -111,12 +121,14 @@ async function startServer() {
 }
 
 async function start() {
-  if (!imageLinks.isConfigured()) {
+  const hostPort = process.env.PORT?.trim() || process.env.SERVER_PORT?.trim();
+  if (!imageLinks.isConfigured() && !hostPort) {
     console.warn(
       "[spy image server] public image routes are disabled; direct attachments remain available.",
     );
     return false;
   }
+  if (imageLinks.isConfigured()) await imageLinks.validateConfig();
   return startServer();
 }
 
@@ -140,7 +152,12 @@ async function disableDrawingIfIdle() {
   );
   if (active) return false;
   await drawingTunnel.stop();
-  if (!imageLinks.isConfigured()) await stop();
+  if (
+    !imageLinks.isConfigured() &&
+    !process.env.PORT?.trim() &&
+    !process.env.SERVER_PORT?.trim()
+  )
+    await stop();
   return true;
 }
 
@@ -162,4 +179,5 @@ module.exports = {
   enableDrawing,
   disableDrawingIfIdle,
   setCancelHandler: drawingWebServer.setCancelHandler,
+  _internal: { configuredPort },
 };

@@ -6,11 +6,19 @@
 ## التشغيل
 1. `npm install` (يتطلب Node.js 20 أو أحدث؛ إعداد `FCA_MODULE` في `config/general.json`)
 2. ثبّت وشغّل MySQL 8+ أو MariaDB، واضبط إعدادات الاتصال غير السرية في `config/general.json` وكلمة المرور في `.env`.
-3. انسخ `.env.example` إلى `.env` وأضف الأسرار فقط؛ الإعدادات العامة وإعدادات الألعاب موجودة في ملفات JSON. أنشئ قاعدة البيانات والجداول عبر `npm run db:setup`.
+3. انسخ `.env.example` إلى `.env` وأضف الأسرار و`USER_AGENT` المطابق للمتصفح الذي سيصدر الجلسة؛ `HTTPS_PROXY` اختياري. الإعدادات العامة وإعدادات الألعاب موجودة في ملفات JSON. أنشئ قاعدة البيانات والجداول عبر `npm run db:setup`.
 4. صدّر كوكيز حساب البوت (بإضافة متصفح مثل c3c-fbstate) إلى `appstate.json` بجانب `server.js`
 5. `npm start` ثم أضف حساب البوت إلى مجموعة ماسنجر
 
-يحمّل البوت الإعدادات العادية من `config/general.json` وملفات `games/*/config.json` قبل تشغيل الخدمات، مع أولوية لمتغيرات Environment عند وجودها. تعديل هذه الملفات يحتاج إعادة تشغيل البوت؛ احتفظ في `.env` بالأسرار فقط.
+لا يلزم إبقاء صفحة Facebook أو المتصفح مفتوحاً بعد تصدير `appstate.json`؛ يقرأ البوت الجلسة المحفوظة ويتصل بها مباشرة. هذه الكوكيز بيانات اعتماد حساسة وقد تنتهي أو يرفضها Facebook، و`login_blocked` يعني أن Facebook رفض تسجيل الدخول وليس أن المتصفح مغلق. عند ظهوره، أوقف البوت وراجع حالة الحساب عبر Facebook؛ لا تكرر محاولات الدخول أو تبدّل ملفات الجلسة لتجاوز الرفض.
+
+### تسجيل الدخول اليدوي على VPS
+1. من جهازك، افتح نفق SOCKS إلى الـ VPS: `ssh -N -D 127.0.0.1:1080 USER@VPS_HOST`، واضبط المتصفح مؤقتاً على SOCKS5 `127.0.0.1:1080` مع تمرير DNS عبر البروكسي. بذلك يخرج تسجيل الدخول اليدوي بعنوان IP الخاص بالـ VPS.
+2. سجّل الدخول يدوياً إلى Facebook وأكمل أي تحقق يطلبه الموقع؛ لا تحاول تجاوز checkpoint أو إعادة المحاولة إذا حُظر الدخول.
+3. من المتصفح نفسه، اعرض `navigator.userAgent` في أدوات المطور، واستخدم النص كما هو في `USER_AGENT` داخل `.env` على الـ VPS. صدّر appstate بعد اكتمال الدخول وانقل الملف بأمان إلى `APPSTATE_PATH`؛ لا ترسل الملف أو تضعه في Git.
+4. اترك `LOGIN_MODE=appstate` (هو الافتراضي). يمكن ضبط `HTTPS_PROXY` اختيارياً إذا كان الـ VPS يستخدم بروكسياً ثابتاً موثوقاً؛ يجب أن يطابق مسار الشبكة المستخدم يدوياً. أوقف النفق المحلي بعد التصدير إن لم تعد تحتاجه.
+
+يحمّل البوت الإعدادات العادية من `config/general.json` وملفات `games/*/config.json` قبل تشغيل الخدمات، مع أولوية لمتغيرات Environment عند وجودها. تعديل هذه الملفات يحتاج إعادة تشغيل البوت؛ احتفظ في `.env` بالأسرار و`USER_AGENT` و`HTTPS_PROXY` فقط.
 
 ### النشر على Bot-Hosting.net (Messenger)
 
@@ -23,6 +31,27 @@
 راجع دليل [إنشاء نشر](https://bot-hosting.net/docs/guides/create-a-deployment) و[إعداده](https://bot-hosting.net/docs/guides/set-up-a-deployment). الخطة المجانية المعلنة في Bot-Hosting تسمح بنشر واحد فقط؛ استخدام TiDB Cloud كقاعدة خارجية يتجاوز الحاجة إلى نشر قاعدة بيانات ثانية على Bot-Hosting، مع مراعاة حصة TiDB المجانية وحدود موارد التطبيق (256 MB RAM و512 MB مساحة على خطة Bot-Hosting المجانية). لا حاجة إلى فتح منفذ عام للألعاب الأساسية؛ لعبة الرسم والروابط العامة للصور تحتاج إعداد نطاق/منفذ متوافقاً مع الاستضافة.
 
 احتفظ بملفات الحالة وقاعدة البيانات بعد إعادة التشغيل وإعادة النشر. لا يلزم فتح منفذ عام لتشغيل الألعاب الأساسية؛ لعبة الرسم والروابط العامة للصور تحتاج منفذ `SPY_IMAGE_PORT` مخصصاً ورابطاً عاماً أو نفقاً صالحاً، وقد تتطلب تثبيت `cloudflared` أو `tailscale` داخل البيئة. يوفّر السيرفر منفذ HTTP محلياً فقط ولا ينشئ رابط HTTPS عاماً تلقائياً.
+
+في استضافة التطبيقات، يستخدم خادم الرسم منفذ المنصة `PORT` أو `SERVER_PORT` ويبدأ الاستماع عند إقلاع التطبيق. لضمان فتح رابط الرسم من خارج الخادم، اضبط `SPY_IMAGE_PUBLIC_BASE_URL` على نطاق HTTPS العام الذي يوجّهه المضيف إلى هذا المنفذ؛ تُكتشف أيضاً متغيرات `PUBLIC_URL` و`RENDER_EXTERNAL_URL` و`RAILWAY_PUBLIC_DOMAIN`. إذا لم توفّر الاستضافة نطاقاً عاماً أو توجيهاً للمنفذ، يلزم نفق HTTPS مثل Cloudflare Tunnel أو Tailscale Funnel.
+
+### استضافة دائمة على Oracle Cloud Always Free VM (اختياري)
+
+هذا الخيار يحتاج حساب Oracle وبطاقة للتحقق؛ قد لا تتوفر سعة في المنطقة المختارة. اختر موارد **Always Free** فقط ولا تنتقل إلى Pay As You Go. Oracle قد يستعيد بعض الخوادم المجانية إذا اعتبرها خاملة، لذلك لا يوجد ضمان تشغيل دائم. للاستخدام التجريبي، خادم Ampere A1 بحدود 1 OCPU و6 GB RAM مناسب أكثر من خادم AMD Micro ذي 1 GB، إذا كانت السعة متاحة.
+
+1. أنشئ Ubuntu VM ضمن حدود Always Free، واسمح باتصالات SSH وHTTP/HTTPS في قواعد الشبكة. لا تفتح منفذ التطبيق `3000` للعامة.
+2. ثبّت Node.js 20 أو أحدث وGit، ثم استنسخ المستودع إلى `/opt/detective-bot`. أنشئ مستخدم خدمة ومجلد حالة دائم:
+   ```sh
+   sudo useradd --system --home-dir /opt/detective-bot --shell /usr/sbin/nologin detective-bot
+   sudo install -d -o detective-bot -g detective-bot -m 700 /var/lib/detective-bot
+   sudo chown -R detective-bot:detective-bot /opt/detective-bot
+   sudo -u detective-bot npm ci --prefix /opt/detective-bot
+   ```
+3. أنشئ `/opt/detective-bot/.env` بصلاحية `600`، واجعل مالكه `detective-bot`. استخدم `LOGIN_MODE=appstate`, و`APPSTATE_PATH=/var/lib/detective-bot/appstate.json`, و`LOGIN_LOCK_PATH=/var/lib/detective-bot/login-lock.json`, و`BOT_PROCESS_LOCK_PATH=/var/lib/detective-bot/bot.lock`, و`SPY_IMAGE_LINK_SECRET_PATH=/var/lib/detective-bot/spy-image-link-secret`. أضف `USER_AGENT` المطابق تماماً للمتصفح الذي صدّر الجلسة، و`DB_PASSWORD`، و`APPSTATE_ENCRYPTION_KEY` إذا كان ملف الجلسة مشفّراً. لا تضع كلمات المرور أو الكوكيز في ملفات الإعدادات المتتبعة بـGit.
+4. انقل `appstate.json` بأمان إلى `/var/lib/detective-bot/appstate.json`، ثم اجعل مالكه `detective-bot` وصلاحيته `600`. لا ترفعه إلى Git أو ترسله في المحادثات. شغّل `npm run db:setup` مرة واحدة باستخدام إعدادات قاعدة البيانات الصحيحة قبل بدء الخدمة.
+5. للعبة الرسم، وجّه نطاقاً تملكه إلى عنوان الخادم، واستخدم Caddy أو reverse proxy مماثلاً للحصول على HTTPS وتمرير الطلبات إلى `127.0.0.1:3000`. أضف في `.env` `PORT=3000` و`SPY_IMAGE_PUBLIC_BASE_URL=https://your-domain.example`، واسمح بـ80/443 في جدار الحماية. لا تضع `SPY_IMAGE_PUBLIC_BASE_URL` على عنوان HTTP عام.
+6. انسخ `deploy/oracle/detective-bot.service` إلى `/etc/systemd/system/`, ثم نفّذ `sudo systemctl daemon-reload` و`sudo systemctl enable --now detective-bot`. راقب التشغيل بـ`sudo journalctl -u detective-bot -f`. الوحدة لا تعيد تشغيل البوت تلقائياً عند الخروج؛ بعد checkpoint أو `login_blocked` اترك القفل كما هو، افحص الحساب عبر Facebook يدوياً، ولا تعِد التشغيل إلا بعد معالجة السبب وتجديد الجلسة عند الحاجة.
+
+تظل قاعدة البيانات الخارجية وإعداداتها لازمة كما في الخطوات السابقة. احفظ appstate والقفل وملفات الحالة الأخرى تحت `/var/lib/detective-bot` كي تبقى بعد تحديث التطبيق أو إعادة تشغيل الخادم.
 
 ### اختيار مكتبة FCA
 
@@ -181,10 +210,10 @@ npm run patterns -- approve 3 4
 ## 🔐 الأمان (تحديث)
 - **لا ترفع/ترسل** `.env` أو `appstate.json` أو `e2ee_device.json` أو `mobile_device.json` أو `.nexca/` أو `outbound_frames.log` أو `Fca_Database/` لأي شخص أو أداة.
 - الوضع الافتراضي `LOGIN_MODE=appstate`: يسجّل البوت الدخول باستخدام ملف `appstate.json` بجانب `server.js`. احفظ الجلسة المصدّرة في هذا الملف ولا تشاركها أو نسختها الاحتياطية. `APPSTATE_ENCRYPTION_KEY` يشفّر الملف عند ضبطه، وتُكتب الملفات السرية بصلاحيات المالك فقط.
-- `LOGIN_MODE=password` و`LOGIN_MODE=auto` متاحان عند الحاجة؛ وضع كلمة المرور يستخدم `FB_EMAIL` و`FB_PASSWORD`، أما `auto` فيفضّل الجلسة المحفوظة ثم بيانات الدخول.
+- `LOGIN_MODE=password` متاح فقط عند ضبطه صراحةً ويستخدم `FB_EMAIL` و`FB_PASSWORD`. لا يحاول وضع `appstate` أو `auto` الرجوع إلى كلمة المرور عند رفض الجلسة؛ يوقف المحاولة ويسجل الرفض.
 - عند اختيار `facebook-chat-api` قد ينشئ FCA ملفي `e2ee_device.json` و`mobile_device.json`؛ يحتويان بيانات جلسة/مفاتيح خاصة، وهما مستثنيان من Git. احتفظ بنسخة `e2ee_device.json` نفسها بين مرات التشغيل ولا تحذفها أو تشغّل نسختين من البوت باستخدام هوية الجهاز نفسها؛ المفاتيح المرفوعة تعتمد على هذا الملف.
 - `services/logRedactor.js` يخفي كلمة المرور والكوكيز ومفاتيح API من كل السجلات.
-- **قفل الدخول**: بعد رفض فيسبوك تسجيل الدخول (`checkpoint` / `login_blocked` / `Not logged in`) يُوقف البوت محاولات الدخول مؤقتاً (`.nexca/login-lock.json`) حمايةً للحساب من تكرار المحاولات. أوقف البوت، وراجع إشعارات الأمان وحالة الحساب عبر Facebook مباشرة، وأكمل أي تحقق مطلوب، ثم انتظر انتهاء المهلة قبل إعادة المحاولة. لا تحذف ملف القفل ولا تستخدم `FORCE_LOGIN` لتجاوز الرفض. يعتمد المشروع على واجهة غير رسمية؛ للتكامل المدعوم استخدم واجهات Meta الرسمية.
+- **القفل**: يمنع `.nexca/bot.lock` تشغيل نسختين في الوقت نفسه، ويحتفظ `.nexca/login-lock.json` بقفل رفض تسجيل الدخول (`checkpoint` / `login_blocked`). عند الرفض يتوقف البوت ولا يعيد المحاولة؛ أوقفه وراجع حالة الحساب وأكمل التحقق يدوياً. لا يدعم البوت تجاوز القفل بالقوة. يعتمد المشروع على واجهة غير رسمية؛ للتكامل المدعوم استخدم واجهات Meta الرسمية.
 - حدود إرسال في الدقيقة والساعة واليوم، وقاطع يوقف الإرسال مؤقتاً بعد أخطاء الرفض، وحد رسائل لكل مستخدم، وقائمة مجموعات مسموحة اختيارية. اكتب `إيقاف` أو `stop` في الخاص لإيقاف رسائل البوت، و`ابدأ` أو `start` لإعادتها؛ ويُحفظ الاختيار في `.nexca/safety-state.json`. الإعداد `STRICT_PRIVATE=1` يمنع الخاص قبل أن يبدأ المستخدم المحادثة، ويمكن ضبط `QUIET_HOURS` مثل `3-7` لإيقاف الرسائل في هذه الساعات.
 
 ## 🖼️ الصور

@@ -1,0 +1,18 @@
+[Unit]
+Description=Detective Messenger group bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=detective-bot
+Group=detective-bot
+WorkingDirectory=/opt/detective-bot
+ExecStart=/usr/bin/env node /opt/detective-bot/server.js
+Restart=no
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
