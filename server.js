@@ -75,6 +75,7 @@ function onEvent(ev) {
     const userId = ev.senderID || ev.userID;
     if (!userId || userId === messenger.selfId() || !ev.threadID || !ev.messageID) return;
     if (!threadAllowed(ev.threadID, true)) return;
+    if (!gameManager.noteActivity()) return;
     const key = `g:${ev.threadID}`;
     enqueue(key, () => gameManager.handleReaction({
       userId: String(userId),
@@ -88,6 +89,7 @@ function onEvent(ev) {
     if (gameManager.isBotPaused()) return;
     if (!threadAllowed(joinNotice.threadId, true)) return;
     if (isDuplicate(ev.messageID)) return;
+    if (!gameManager.noteActivity()) return;
     enqueue(`g:${joinNotice.threadId}`, () =>
       messenger.sendGroup(joinNotice.threadId, joinNotice.text),
     );
@@ -126,6 +128,8 @@ function onEvent(ev) {
     console.warn(`[security] rate limit: ignoring message from ${ev.senderID}`);
     return;
   }
+  const active = gameManager.noteActivity();
+  if (!active && !gameManager.isBotControlCommand(text)) return;
 
   const key = isGroup ? `g:${ev.threadID}` : `u:${ev.senderID}`;
   enqueue(key, async () => {

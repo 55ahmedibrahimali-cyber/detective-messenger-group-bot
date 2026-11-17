@@ -44,15 +44,24 @@ if (process.env.LOGIN_FALLBACK_CHILD === "1") {
   process.env.USER_AGENT =
     process.env.LOGIN_FALLBACK_USER_AGENT || "test-browser-user-agent";
   process.env.HTTPS_PROXY = process.env.LOGIN_FALLBACK_PROXY || "";
-  process.env.LOGIN_MODE = process.env.LOGIN_FALLBACK_MODE || "auto";
+  if (process.env.LOGIN_FALLBACK_MODE === "unset") {
+    delete process.env.LOGIN_MODE;
+  } else {
+    process.env.LOGIN_MODE = process.env.LOGIN_FALLBACK_MODE || "auto";
+  }
   process.env.FB_EMAIL = "bot@example.invalid";
   process.env.FB_PASSWORD = "test-password";
   process.env.AUTO_ACCEPT_REQUESTS = "false";
-  if (process.env.LOGIN_FALLBACK_PRELOCK === "1") {
+  if (process.env.LOGIN_FALLBACK_CORRUPT_LOCK === "1") {
+    fs.writeFileSync(process.env.LOGIN_LOCK_PATH, "{invalid json");
+  } else if (process.env.LOGIN_FALLBACK_PRELOCK === "1") {
+    const appstateMtime = Math.ceil(
+      fs.statSync(process.env.APPSTATE_PATH).mtimeMs,
+    );
     fs.writeFileSync(
       process.env.LOGIN_LOCK_PATH,
       JSON.stringify({
-        ts: fs.statSync(process.env.APPSTATE_PATH).mtimeMs + 1000,
+        ts: appstateMtime + 1000,
         blockedUntil: Date.now() + 60_000,
         reason: "checkpoint required",
       }),
@@ -63,9 +72,14 @@ if (process.env.LOGIN_FALLBACK_CHILD === "1") {
   const finish = (message) => {
     let loginLock = null;
     try {
-      loginLock = JSON.stringify(
-        JSON.parse(fs.readFileSync(process.env.LOGIN_LOCK_PATH, "utf8")),
-      );
+      const contents = fs
+        .readFileSync(process.env.LOGIN_LOCK_PATH, "utf8")
+        .trim();
+      try {
+        loginLock = JSON.stringify(JSON.parse(contents));
+      } catch {
+        loginLock = contents;
+      }
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
     }
@@ -90,6 +104,7 @@ if (process.env.LOGIN_FALLBACK_CHILD === "1") {
           LOGIN_FALLBACK_ERROR: error,
           LOGIN_FALLBACK_MODE: settings.mode || "auto",
           LOGIN_FALLBACK_PRELOCK: settings.prelock ? "1" : "0",
+          LOGIN_FALLBACK_CORRUPT_LOCK: settings.corruptLock ? "1" : "0",
           FORCE_LOGIN: settings.forceLogin ? "1" : "",
         },
         encoding: "utf8",
@@ -109,6 +124,13 @@ if (process.env.LOGIN_FALLBACK_CHILD === "1") {
 
   test("appstate mode is the default and does not attempt a password", () => {
     const result = runLoginFailure("Not logged in", { mode: "appstate" });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /LOGIN_ERROR=Not logged in/);
+    assert.match(result.stdout, /ATTEMPTS=\["appstate"\]/);
+  });
+
+  test("an unset LOGIN_MODE defaults to appstate without attempting a password", () => {
+    const result = runLoginFailure("Not logged in", { mode: "unset" });
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.match(result.stdout, /LOGIN_ERROR=Not logged in/);
     assert.match(result.stdout, /ATTEMPTS=\["appstate"\]/);
@@ -135,6 +157,17 @@ if (process.env.LOGIN_FALLBACK_CHILD === "1") {
     const lock = JSON.parse(lockMatch[1]);
     assert.match(lock.reason, /checkpoint required/);
     assert.ok(lock.blockedUntil > Date.now());
+  });
+
+  test("a corrupt login lock fails closed without attempting login", () => {
+    const result = runLoginFailure("unused", {
+      mode: "appstate",
+      corruptLock: true,
+    });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /LOGIN_ERROR=.*قفل تسجيل الدخول.*تالف/);
+    assert.match(result.stdout, /ATTEMPTS=\[\]/);
+    assert.match(result.stdout, /LOGIN_LOCK=\{invalid json/);
   });
 
   test("auto mode does not retry the password after a transient login error", () => {

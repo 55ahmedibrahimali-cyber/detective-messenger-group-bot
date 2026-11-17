@@ -10,6 +10,9 @@ const fixedReplies = require("./fixedReplies");
 const stormLogo = require("./stormLogo");
 const imageQuality = require("./imageQuality");
 const db = require("../database");
+const { IDLE_TIMEOUT_MS } = require("./idlePause");
+test.beforeEach(() => gameManager._internal.resetCommandCooldowns());
+
 const games = [
   "crime",
   "storm",
@@ -72,6 +75,7 @@ test("the general game-help command routes to every game's own rules", async () 
       };
     });
     for (const [index, game] of games.entries()) {
+      gameManager._internal.resetCommandCooldowns();
       await gameManager.handleMessage({
         text: `/شرح ${gameNames[index]}`,
         isGroup: true,
@@ -94,6 +98,31 @@ test("the general game-help command routes to every game's own rules", async () 
     games.forEach((game, index) => {
       game.engine.handleMessage = originals[index];
     });
+  }
+});
+
+test("repeated global commands are ignored during the command cooldown", async () => {
+  const originalSendGroup = msg.sendGroup;
+  const sentMessages = [];
+  gameManager._internal.resetCommandCooldowns();
+  msg.sendGroup = async (_threadId, text) => sentMessages.push(text);
+  try {
+    const context = {
+      text: "/games",
+      isGroup: true,
+      threadId: "cooldown-thread",
+      userId: "cooldown-user",
+    };
+    await gameManager.handleMessage(context);
+    await gameManager.handleMessage(context);
+
+    assert.equal(sentMessages.length, 1);
+    assert.match(sentMessages[0], /الألعاب/);
+
+    await gameManager.handleMessage({ ...context, platform: "telegram" });
+    assert.equal(sentMessages.length, 2);
+  } finally {
+    msg.sendGroup = originalSendGroup;
   }
 });
 
@@ -408,6 +437,42 @@ test("the owner can pause and resume the bot from private chat", async () => {
     }
     msg.sendPrivate = originalSendPrivate;
     msg.sendGroup = originalSendGroup;
+  }
+});
+
+test("the owner can resume the bot from automatic idle mode", async () => {
+  const originalSendPrivate = msg.sendPrivate;
+  const privateMessages = [];
+  let now = Date.now();
+  const ownerContext = {
+    isGroup: false,
+    userId: "61555344774852",
+    threadId: "idle-control-owner",
+  };
+  msg.sendPrivate = async (_userId, text) => privateMessages.push(text);
+  gameManager._internal.setIdleClock(() => now);
+  gameManager._internal.resetIdleTimer();
+  try {
+    now += IDLE_TIMEOUT_MS;
+    assert.equal(gameManager.isBotPaused(), true);
+
+    await gameManager.handleMessage({
+      ...ownerContext,
+      text: "/تشغيل البوت",
+    });
+
+    assert.equal(gameManager.isBotPaused(), false);
+    assert.match(privateMessages.at(-1), /استئناف عمله/);
+  } finally {
+    if (gameManager.isBotPaused()) {
+      await gameManager.handleMessage({
+        ...ownerContext,
+        text: "/تشغيل البوت",
+      });
+    }
+    gameManager._internal.setIdleClock(() => Date.now());
+    gameManager._internal.resetIdleTimer();
+    msg.sendPrivate = originalSendPrivate;
   }
 });
 
@@ -983,6 +1048,7 @@ test("the cancel command cancels cultural quiz games and confirms it in the grou
   };
   try {
     for (const game of quizGames) {
+      gameManager._internal.resetCommandCooldowns();
       await gameManager.handleMessage({
         text: "الغاء",
         isGroup: true,
@@ -1114,6 +1180,7 @@ test("only the owner can demote admins, and cannot demote themselves", async () 
     assert.match(sentMessage, /تم تنزيل المستخدم 555123456/);
 
     removedId = undefined;
+    gameManager._internal.resetCommandCooldowns();
     await gameManager.handleMessage({
       text: "/تنزيل ادمن 61555344774852",
       isGroup: false,
@@ -1157,6 +1224,7 @@ test("admins can kick a user by reply while protecting the owner and admins", as
     assert.match(sentMessage, /تم طرد المستخدم 9876543210/);
 
     removedTarget = undefined;
+    gameManager._internal.resetCommandCooldowns();
     await gameManager.handleMessage({
       text: "طرد",
       isGroup: true,

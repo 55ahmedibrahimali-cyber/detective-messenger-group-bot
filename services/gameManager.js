@@ -10,6 +10,8 @@ const pointStore = require("./pointStore");
 const fixedReplies = require("./fixedReplies");
 const stormLogo = require("./stormLogo");
 const imageQuality = require("./imageQuality");
+const { createIdlePause, IDLE_TIMEOUT_MS } = require("./idlePause");
+const { createCommandCooldown } = require("./commandCooldown");
 
 const registeredGames = [
   require("../games/crime"),
@@ -38,6 +40,30 @@ const registeredGames = [
 const games = new Map();
 const aliases = new Map();
 let botPaused = false;
+let idleCheckTimer = null;
+let idleClock = () => Date.now();
+const idlePause = createIdlePause({
+  timeoutMs: IDLE_TIMEOUT_MS,
+  now: () => idleClock(),
+  isPaused: () => botPaused,
+  onIdle: () => {
+    botPaused = true;
+    console.info(
+      "[bot] دخل وضع الخمول بعد 15 دقيقة بلا نشاط؛ أرسل /تشغيل البوت في الخاص للاستئناف.",
+    );
+  },
+});
+const isGlobalCommandCoolingDown = createCommandCooldown({
+  defaultCooldownMs: 3000,
+  cooldowns: new Map([
+    ["test-image", 15_000],
+    ["image-quality", 15_000],
+    ["storm-logo", 10_000],
+    ["pause-bot", 0],
+    ["resume-bot", 0],
+    ["shutdown", 0],
+  ]),
+});
 const globalCommandEntries = [
   ["help", "help"],
   ["مساعدة", "help"],
@@ -337,6 +363,7 @@ async function handleGlobalCommand(command, context) {
     if (!botPaused)
       return msg.sendPrivate(context.userId, "✅ البوت يعمل بالفعل.");
     botPaused = false;
+    idlePause.resume();
     return msg.sendPrivate(context.userId, "✅ تم تشغيل البوت واستئناف عمله.");
   }
   if (command === "shutdown") {
@@ -996,9 +1023,20 @@ async function hasActiveGame(context) {
 }
 
 async function handleMessage(context) {
+  idlePause.check();
   const globalCommand = globalCommandFor(context.text);
   if (botPaused && !isBotControlCommand(context.text)) return;
-  if (globalCommand) return handleGlobalCommand(globalCommand, context);
+  if (globalCommand) {
+    if (
+      context.userId &&
+      isGlobalCommandCoolingDown(
+        `${context.platform || "messenger"}:${context.userId}`,
+        globalCommand,
+      )
+    )
+      return;
+    return handleGlobalCommand(globalCommand, context);
+  }
 
   const availability = new Map();
   const isGameEnabled = (gameId) => {
@@ -1118,6 +1156,11 @@ async function cleanupStaleRooms() {
 }
 
 function startTickers() {
+  idlePause.resume();
+  if (!idleCheckTimer) {
+    idleCheckTimer = setInterval(() => idlePause.check(), 10_000);
+    idleCheckTimer.unref?.();
+  }
   for (const game of games.values()) game.engine.startTicker?.();
   phaseReminders.start(); // تنبيهات الوقت المتبقي (30 / 10 ثوانٍ) لكل الألعاب
   const cleanup = () =>
@@ -1140,10 +1183,22 @@ async function assertSchemas() {
 module.exports = {
   handleMessage,
   isBotControlCommand,
-  isBotPaused: () => botPaused,
+  isBotPaused: () => {
+    idlePause.check();
+    return botPaused;
+  },
+  noteActivity: () => idlePause.noteActivity(),
   handleReaction,
   hasActiveGame,
   startTickers,
   assertSchemas,
-  _internal: { engineCommandText, globalCommandFor },
+  _internal: {
+    engineCommandText,
+    globalCommandFor,
+    setIdleClock: (clock) => {
+      idleClock = clock;
+    },
+    resetIdleTimer: () => idlePause.resume(),
+    resetCommandCooldowns: () => isGlobalCommandCoolingDown.reset(),
+  },
 };

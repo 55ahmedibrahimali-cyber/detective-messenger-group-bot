@@ -894,6 +894,8 @@ async function handleMessage(message) {
   if (!message?.chat) return;
   const joinNotice = welcome.telegramMemberAdded(message, botInfo?.id);
   if (joinNotice) {
+    if (manager?.isBotPaused()) return;
+    if (!manager?.noteActivity()) return;
     enqueueUpdate(joinNotice.threadId, () =>
       telegramMessenger().sendGroup(joinNotice.threadId, joinNotice.text),
     );
@@ -931,6 +933,8 @@ async function handleMessage(message) {
     console.warn("[telegram] rate-limited incoming user:", context.userId);
     return;
   }
+  const active = manager.noteActivity();
+  if (!active && !manager.isBotControlCommand(context.text)) return;
   if (context.text.length > 1000) {
     context.text = context.text.slice(0, 1000);
   }
@@ -967,6 +971,11 @@ async function handleMessage(message) {
     return;
   }
   enqueueUpdate(context.threadId, async () => {
+    if (
+      manager.isBotPaused() ||
+      manager.isBotControlCommand(context.text)
+    )
+      return manager.handleMessage({ ...context, platform: "telegram" });
     const transport = telegramMessenger();
     const pinterestHandled = await pinterest.tryHandle(
       { ...context, platform: "telegram" },
@@ -1022,7 +1031,7 @@ async function handleMessage(message) {
       },
     );
     if (handled) return;
-    return manager.handleMessage(context);
+    return manager.handleMessage({ ...context, platform: "telegram" });
   });
 }
 
@@ -1042,6 +1051,14 @@ async function handleCallback(callback) {
   const threadId = String(message.chat.id);
   const messageId = String(message.message_id);
   const userId = String(user.id);
+  if (!manager.noteActivity()) {
+    await telegramCall("answerCallbackQuery", {
+      callback_query_id: callback.id,
+      text: "البوت متوقف مؤقتاً؛ أرسل /تشغيل البوت في الخاص للاستئناف.",
+      show_alert: false,
+    });
+    return;
+  }
   rememberLobbyMember(threadId, messageId, userId);
   await telegramCall("answerCallbackQuery", {
     callback_query_id: callback.id,

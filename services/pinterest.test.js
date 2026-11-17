@@ -52,11 +52,18 @@ function fakeHttp({ results, files = {}, searchStatus = 200 }) {
   };
 }
 
-function makeDeps() {
+function makeDeps(dailyUsage = new Map()) {
   const sent = { texts: [], images: [], batches: [] };
   return {
     sent,
     deps: {
+      reserveDailySearch: async (principalId, usageDate) => {
+        const key = `${principalId}:${usageDate}`;
+        const count = dailyUsage.get(key) || 0;
+        if (count >= 10) return false;
+        dailyUsage.set(key, count + 1);
+        return true;
+      },
       sendText: async (t, text) => { sent.texts.push(text); return true; },
       sendImage: async (t, buf, type, caption) => { sent.images.push({ buffer: buf, type, caption }); return true; },
       sendImages: async (threadId, images, isGroup) => {
@@ -210,6 +217,33 @@ test("per-user cooldown, per-thread cooldown and in-flight guard", async () => {
   assert.strictEqual(sent.images.length, 2);
 });
 
+test("Pinterest search stops at ten searches per person per UTC day", async () => {
+  _internal.reset();
+  let now = Date.UTC(2026, 10, 17, 10);
+  _internal.setClock(() => now);
+  const dailyUsage = new Map();
+  const h = fakeHttp({ results: [] });
+  _internal.setHttp(h);
+  const { deps, sent } = makeDeps(dailyUsage);
+
+  for (let index = 0; index < 10; index += 1) {
+    await pin.tryHandle(ctx(`بنترست cat-${index}`), deps);
+    await pin.idle();
+    now += 25_000;
+  }
+
+  _internal.reset();
+  _internal.setClock(() => now);
+  const nextHttp = fakeHttp({ results: [] });
+  _internal.setHttp(nextHttp);
+  const { deps: nextDeps, sent: nextSent } = makeDeps(dailyUsage);
+  await pin.tryHandle(ctx("بنترست الحادي عشر"), nextDeps);
+  await pin.idle();
+
+  assert.equal(nextHttp.calls.search, 0);
+  assert.match(nextSent.texts.at(-1), /الحد اليومي/);
+});
+
 test("429 pauses the provider for 15 minutes with a friendly message", async () => {
   _internal.reset();
   let now = 5_000_000;
@@ -233,14 +267,12 @@ test("a failed image send stops the batch (no hammering)", async () => {
   _internal.setHttp(fakeHttp({ results: ids.map((i) => P(i)), files: allFiles(ids) }));
   let batchCalls = 0;
   let singleCalls = 0;
-  const deps = {
-    sendText: async () => true,
-    sendImage: async () => (++singleCalls, false),
-    sendImages: async (_threadId, images) => {
-      batchCalls += 1;
-      assert.strictEqual(images.length, 3);
-      return false;
-    },
+  const { deps } = makeDeps();
+  deps.sendImage = async () => (++singleCalls, false);
+  deps.sendImages = async (_threadId, images) => {
+    batchCalls += 1;
+    assert.strictEqual(images.length, 3);
+    return false;
   };
   await pin.tryHandle(ctx("بنترست 3 بحر"), deps);
   await pin.idle();

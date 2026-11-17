@@ -151,11 +151,52 @@ function explainMissingIdentityCookie() {
 // بعد أي رفض من فيسبوك نمنع إعادة محاولات الدخول المتكررة (حتى لو أعاد مدير العمليات تشغيل البوت)،
 // لأن تكرار الدخول الفاشل هو أسرع طريق لـ checkpoint أو قفل الحساب.
 function readLock() {
+  let contents;
   try {
-    return JSON.parse(fs.readFileSync(LOCK_PATH, "utf8"));
-  } catch {
-    return null;
+    contents = fs.readFileSync(LOCK_PATH, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw Object.assign(
+      new Error(
+        `تعذرت قراءة قفل تسجيل الدخول ${LOCK_PATH}: ${error.message}. لن يحاول البوت الدخول حتى يمكن التحقق من القفل.`,
+        { cause: error },
+      ),
+      { loginLocked: true },
+    );
   }
+
+  let lock;
+  try {
+    lock = JSON.parse(contents);
+  } catch (error) {
+    throw Object.assign(
+      new Error(
+        `ملف قفل تسجيل الدخول ${LOCK_PATH} تالف أو ليس JSON صالحاً. لن يحاول البوت الدخول حتى يتم إصلاح القفل يدوياً بعد التحقق من حالة الحساب.`,
+        { cause: error },
+      ),
+      { loginLocked: true },
+    );
+  }
+
+  if (
+    !lock ||
+    typeof lock !== "object" ||
+    Array.isArray(lock) ||
+    !Number.isSafeInteger(lock.blockedUntil) ||
+    lock.blockedUntil < 0 ||
+    (lock.ts !== undefined &&
+      (!Number.isSafeInteger(lock.ts) || lock.ts < 0)) ||
+    (lock.reason !== undefined && typeof lock.reason !== "string")
+  ) {
+    throw Object.assign(
+      new Error(
+        `بنية ملف قفل تسجيل الدخول ${LOCK_PATH} غير صالحة. لن يحاول البوت الدخول حتى يتم إصلاح القفل يدوياً بعد التحقق من حالة الحساب.`,
+      ),
+      { loginLocked: true },
+    );
+  }
+
+  return lock;
 }
 
 function writeLock(patch) {
@@ -185,7 +226,7 @@ function assertLoginAllowed() {
   } catch {
     /* لا يوجد ملف جلسة */
   }
-  if (appstateTime > Number(lock.ts || 0)) return; // جُدّدت الكوكيز بعد القفل
+  if (Number.isSafeInteger(lock.ts) && appstateTime > lock.ts) return; // جُدّدت الكوكيز بعد القفل
   const until = new Date(lock.blockedUntil).toLocaleString("ar-EG");
   throw Object.assign(new Error(
     `تم إيقاف محاولات الدخول مؤقتاً حتى ${until} لحماية الحساب (السبب: ${lock.reason || "رفض من فيسبوك"}). ` +

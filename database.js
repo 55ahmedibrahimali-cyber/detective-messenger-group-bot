@@ -1,5 +1,8 @@
 const mysql = require('mysql2/promise');
 const adminAuth = require('./services/adminAuth');
+const {
+  reservePinterestDailySearch: reserveDailySearch,
+} = require('./services/dailyQuota');
 const { databaseSslOptions } = require('./services/databaseSsl');
 
 const pool = mysql.createPool({
@@ -135,6 +138,18 @@ async function assertSchema() {
     ) ENGINE=InnoDB`,
   );
   await query(
+    `CREATE TABLE IF NOT EXISTS bot_pinterest_daily_usage (
+      principal_id VARCHAR(96) NOT NULL,
+      usage_date DATE NOT NULL,
+      search_count TINYINT UNSIGNED NOT NULL DEFAULT 0,
+      PRIMARY KEY (principal_id, usage_date),
+      KEY idx_pinterest_daily_usage_date (usage_date)
+    ) ENGINE=InnoDB`,
+  );
+  await query(
+    "DELETE FROM bot_pinterest_daily_usage WHERE usage_date < UTC_DATE() - INTERVAL 31 DAY",
+  );
+  await query(
     `CREATE TABLE IF NOT EXISTS bot_fixed_replies (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
       trigger_text VARCHAR(100) NOT NULL,
@@ -245,6 +260,13 @@ async function listBannedUsers() {
   );
 }
 
+async function reservePinterestDailySearch(
+  principalId,
+  usageDate = new Date().toISOString().slice(0, 10),
+) {
+  return reserveDailySearch(query, principalId, usageDate);
+}
+
 async function withTransaction(callback) {
   const connection = await pool.getConnection();
   try {
@@ -270,6 +292,7 @@ module.exports = {
   banUser,
   unbanUser,
   listBannedUsers,
+  reservePinterestDailySearch,
   withTransaction,
   assertSchema,
   _internal: { ensureFixedRepliesIdColumn },

@@ -10,6 +10,8 @@
 // لكل مستخدم في آن واحد. والإرسال نفسه يمر عبر طبقة الإرسال الحالية (فواصل عشوائية وحدود عامة).
 
 const crypto = require("node:crypto");
+const db = require("../database");
+const { DAILY_SEARCH_LIMIT } = require("./dailyQuota");
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // أقل من حد الإرسال (10MB)
 const MAX_QUERY_LENGTH = 100;
@@ -450,8 +452,44 @@ async function run(ctx, deps, parsed, count, clamped, c) {
     await deps.sendText(ctx.threadId, msg, ctx.isGroup).catch(() => {});
   } finally {
     for (const image of selectedImages) releaseReservedImage(image);
-    inFlight.delete(ctx.userId);
   }
+}
+
+async function reserveDailyAndRun(ctx, deps, parsed, count, clamped, config, now) {
+  const reserve = deps.reserveDailySearch || db.reservePinterestDailySearch;
+  let allowed;
+  try {
+    allowed = await reserve(
+      `${ctx.platform || "messenger"}:${ctx.userId}`,
+      new Date(now).toISOString().slice(0, 10),
+    );
+  } catch (error) {
+    console.error("[pinterest] daily quota unavailable:", error.message);
+    try {
+      await notice(
+        deps,
+        ctx,
+        "تعذّر التحقق من حد بنترست اليومي؛ لم أبدأ البحث. حاول لاحقاً.",
+      );
+    } catch (sendError) {
+      console.error(
+        "[pinterest] could not report daily quota failure:",
+        sendError.message,
+      );
+    }
+    return;
+  }
+
+  if (!allowed) {
+    await notice(
+      deps,
+      ctx,
+      `وصلت إلى الحد اليومي لبحث بنترست (${DAILY_SEARCH_LIMIT} عمليات). يتجدد الحد عند منتصف الليل UTC.`,
+    );
+    return;
+  }
+
+  await run(ctx, deps, parsed, count, clamped, config);
 }
 
 /**
@@ -493,7 +531,19 @@ async function tryHandle(ctx, deps) {
   trimMap(lastByThread);
   requestTimes.push(now);
 
-  pending = run(ctx, deps, parsed, count, requested > count, c).catch(() => {});
+  pending = reserveDailyAndRun(
+    ctx,
+    deps,
+    parsed,
+    count,
+    requested > count,
+    c,
+    now,
+  )
+    .catch((error) => {
+      console.error("[pinterest] background request failed:", error.message);
+    })
+    .finally(() => inFlight.delete(ctx.userId));
   return true;
 }
 
