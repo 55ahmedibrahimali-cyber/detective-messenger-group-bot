@@ -1,5 +1,6 @@
 const mysql = require('mysql2/promise');
 const adminAuth = require('./services/adminAuth');
+const { databaseSslOptions } = require('./services/databaseSsl');
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || '127.0.0.1',
@@ -10,6 +11,7 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: Number(process.env.DB_CONNECTION_LIMIT) || 10,
   charset: 'utf8mb4',
+  ssl: databaseSslOptions(),
 });
 
 async function query(sql, params = []) {

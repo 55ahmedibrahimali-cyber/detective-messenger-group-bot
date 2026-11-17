@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const mysql = require('mysql2/promise');
+const { databaseSslOptions } = require('./services/databaseSsl');
 
 function buildSchema(schema, databaseName, createDatabase) {
   if (!/^[A-Za-z0-9_$-]{1,64}$/.test(databaseName)) {
@@ -34,6 +35,7 @@ async function setup() {
     password: process.env.DB_PASSWORD || '',
     multipleStatements: true,
     charset: 'utf8mb4',
+    ssl: databaseSslOptions(),
   };
   if (!createDatabase) connectionOptions.database = databaseName;
   const connection = await mysql.createConnection(connectionOptions);
