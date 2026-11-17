@@ -4,6 +4,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 // يجب أن يكون أول شيء بعد dotenv: يخفي كلمات المرور والكوكيز والمفاتيح من كل السجلات
 require('./services/logRedactor').install();
 process.env.BOT_PLATFORM = 'messenger';
+require('./services/configLoader').loadConfig();
 
 const crimeAI = require('./games/crime/aiProvider');
 if (!crimeAI.getConfig().apiKey) {

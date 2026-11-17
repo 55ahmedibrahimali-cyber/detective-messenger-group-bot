@@ -19,7 +19,14 @@ if (useTelegramDatabase) {
   process.env.DB_PORT = process.env.TELEGRAM_DB_PORT || "3306";
   process.env.DB_USER = process.env.TELEGRAM_DB_USER || "root";
   process.env.DB_PASSWORD = process.env.TELEGRAM_DB_PASSWORD || "";
+  process.env.DB_SSL =
+    process.env.TELEGRAM_DB_SSL || process.env.DB_SSL || "0";
+  process.env.DB_SSL_CA =
+    process.env.TELEGRAM_DB_SSL_CA || process.env.DB_SSL_CA || "";
+  process.env.DB_CREATE_DATABASE =
+    process.env.TELEGRAM_DB_CREATE_DATABASE || process.env.DB_CREATE_DATABASE || "1";
 }
+require("../services/configLoader").loadConfig(root);
 
 const db = require("../database");
 const patterns = require("../games/crime/patternLibrary");

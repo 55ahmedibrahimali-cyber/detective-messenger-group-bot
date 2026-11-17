@@ -24,6 +24,11 @@ process.env.DB_HOST = process.env.TELEGRAM_DB_HOST || "127.0.0.1";
 process.env.DB_PORT = process.env.TELEGRAM_DB_PORT || "3306";
 process.env.DB_USER = process.env.TELEGRAM_DB_USER || "root";
 process.env.DB_PASSWORD = process.env.TELEGRAM_DB_PASSWORD || "";
+process.env.DB_SSL = process.env.TELEGRAM_DB_SSL || process.env.DB_SSL || "0";
+process.env.DB_SSL_CA =
+  process.env.TELEGRAM_DB_SSL_CA || process.env.DB_SSL_CA || "";
+process.env.DB_CREATE_DATABASE =
+  process.env.TELEGRAM_DB_CREATE_DATABASE || process.env.DB_CREATE_DATABASE || "1";
 process.env.SPY_IMAGE_PORT = process.env.TELEGRAM_DRAWING_PORT || "3101";
 process.env.TAILSCALE_FUNNEL_PORT =
   process.env.TELEGRAM_FUNNEL_PORT || "8443";
@@ -41,6 +46,7 @@ process.env.SAFETY_STATE_PATH =
   process.env.SAFETY_STATE_PATH ||
   path.join(__dirname, ".nexca", "telegram-safety-state.json");
 process.env.BOT_PLATFORM = "telegram";
+require("./services/configLoader").loadConfig();
 
 const { redact } = require("./services/logRedactor");
 const secureStore = require("./services/secureStore");

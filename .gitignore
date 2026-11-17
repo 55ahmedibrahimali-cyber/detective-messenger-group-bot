@@ -17,3 +17,4 @@ outbound_frames.log
 *.log
 appstate*
 *.tmp
+games/spy/config.json.*.bak

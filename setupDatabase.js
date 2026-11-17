@@ -60,6 +60,7 @@ async function setup() {
 
 if (require.main === module) {
   require('dotenv').config({ path: path.join(__dirname, '.env') });
+  require('./services/configLoader').loadConfig();
   setup().catch((error) => {
     console.error('Database setup failed:', error.message);
     process.exitCode = 1;

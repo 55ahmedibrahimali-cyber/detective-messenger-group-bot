@@ -1,24 +1,37 @@
 $ErrorActionPreference = "Stop"
 Set-Location -Path $PSScriptRoot
-$envFile = Join-Path $PSScriptRoot ".env"
-$lines = if (Test-Path -LiteralPath $envFile) {
-  Get-Content -LiteralPath $envFile -Encoding UTF8
-} else {
-  @()
-}
+$drawingConfigPath = Join-Path $PSScriptRoot "games\drawing\config.json"
+$spyConfigPath = Join-Path $PSScriptRoot "games\spy\config.json"
 
 function Fail($message) {
   Write-Host "ERROR: $message" -ForegroundColor Red
   exit 1
 }
 
-$tailscale = $env:TAILSCALE_PATH
-$configuredPathLine = $lines |
-  Where-Object { $_ -match '^\s*TAILSCALE_PATH\s*=' } |
-  Select-Object -First 1
-if (-not $tailscale -and $configuredPathLine -match '^\s*TAILSCALE_PATH\s*=\s*(.+?)\s*$') {
-  $tailscale = $Matches[1].Trim().Trim('"').Trim("'")
+function Read-Config($filePath) {
+  if (-not (Test-Path -LiteralPath $filePath)) {
+    Fail "Configuration file not found: $filePath"
+  }
+  try {
+    return Get-Content -LiteralPath $filePath -Raw -Encoding UTF8 | ConvertFrom-Json
+  } catch {
+    Fail "Could not read configuration file: $filePath"
+  }
 }
+
+function Get-ConfigValue($config, $name, $fallback) {
+  $property = $config.PSObject.Properties[$name]
+  if ($property -and $null -ne $property.Value -and [string]$property.Value -ne "") {
+    return [string]$property.Value
+  }
+  return $fallback
+}
+
+$drawingConfig = Read-Config $drawingConfigPath
+$spyConfig = Read-Config $spyConfigPath
+
+$tailscale = $env:TAILSCALE_PATH
+$tailscale = Get-ConfigValue $drawingConfig "TAILSCALE_PATH" $tailscale
 if ($tailscale -and -not (Test-Path -LiteralPath $tailscale)) {
   $tailscale = $null
 }
@@ -42,23 +55,14 @@ if (-not $tailscale) {
 }
 
 $port = 3000
-$httpsPort = 443
-if ($lines.Count -gt 0) {
-  $spyPortLine = $lines |
-    Where-Object { $_ -match '^\s*SPY_IMAGE_PORT\s*=\s*(\d+)' } |
-    Select-Object -First 1
-  $plainPortLine = $lines |
-    Where-Object { $_ -match '^\s*PORT\s*=\s*(\d+)' } |
-    Select-Object -First 1
-  $funnelPortLine = $lines |
-    Where-Object { $_ -match '^\s*TAILSCALE_FUNNEL_PORT\s*=\s*(\d+)' } |
-    Select-Object -First 1
-  if ($spyPortLine -match '=\s*(\d+)') { $port = [int]$Matches[1] }
-  elseif ($plainPortLine -match '=\s*(\d+)') { $port = [int]$Matches[1] }
-  if ($funnelPortLine -match '=\s*(\d+)') {
-    $httpsPort = [int]$Matches[1]
-  }
-}
+$portValue = $env:SPY_IMAGE_PORT
+if (-not $portValue) { $portValue = $env:PORT }
+if (-not $portValue) { $portValue = Get-ConfigValue $spyConfig "SPY_IMAGE_PORT" "3000" }
+if ($portValue -match '^\d+$') { $port = [int]$portValue }
+$httpsPortValue = Get-ConfigValue $drawingConfig "TAILSCALE_FUNNEL_PORT" "443"
+if ($env:TAILSCALE_FUNNEL_PORT) { $httpsPortValue = $env:TAILSCALE_FUNNEL_PORT }
+if ($httpsPortValue -match '^\d+$') { $httpsPort = [int]$httpsPortValue }
+else { $httpsPort = 443 }
 if ($httpsPort -notin @(443, 8443, 10000)) {
   Fail "TAILSCALE_FUNNEL_PORT must be 443, 8443, or 10000."
 }
@@ -111,30 +115,19 @@ if ($httpsPort -eq 443) { $address = $address -replace ":$httpsPort$", "" }
 $baseUrl = "https://$address"
 Write-Host "Public base URL: $baseUrl" -ForegroundColor Green
 
-if (Test-Path -LiteralPath $envFile) {
-  $backupPath = "$envFile.$(Get-Date -Format 'yyyyMMdd-HHmmss').bak"
-  Copy-Item -LiteralPath $envFile -Destination $backupPath
-  $lines = Get-Content -LiteralPath $envFile -Encoding UTF8
+$backupPath = "$spyConfigPath.$(Get-Date -Format 'yyyyMMdd-HHmmss').bak"
+Copy-Item -LiteralPath $spyConfigPath -Destination $backupPath
+$property = $spyConfig.PSObject.Properties["SPY_IMAGE_PUBLIC_BASE_URL"]
+if ($property) {
+  $property.Value = $baseUrl
 } else {
-  $backupPath = $null
-  $lines = @()
+  $spyConfig | Add-Member -MemberType NoteProperty -Name "SPY_IMAGE_PUBLIC_BASE_URL" -Value $baseUrl
 }
-$found = $false
-$lines = @($lines | ForEach-Object {
-  if ($_ -match '^\s*SPY_IMAGE_PUBLIC_BASE_URL\s*=') {
-    $found = $true
-    "SPY_IMAGE_PUBLIC_BASE_URL=$baseUrl"
-  } else {
-    $_
-  }
-})
-if (-not $found) { $lines += "SPY_IMAGE_PUBLIC_BASE_URL=$baseUrl" }
-$content = ($lines -join [Environment]::NewLine) + [Environment]::NewLine
+$content = ($spyConfig | ConvertTo-Json -Depth 100) + [Environment]::NewLine
 $encoding = New-Object System.Text.UTF8Encoding $false
-[System.IO.File]::WriteAllText($envFile, $content, $encoding)
+[System.IO.File]::WriteAllText($spyConfigPath, $content, $encoding)
 
-if ($backupPath) { Write-Host ".env updated. Backup: $backupPath" }
-else { Write-Host ".env created." }
+Write-Host "games/spy/config.json updated. Backup: $backupPath"
 try {
   $response = Invoke-WebRequest `
     -Uri "$baseUrl/draw/probe-healthcheck" `
@@ -148,4 +141,4 @@ try {
 } catch {
   Write-Host "The route is configured; start the bot and verify reachability. $($_.Exception.Message)" -ForegroundColor Yellow
 }
-Write-Host "Restart the bot so it loads the new .env value."
+Write-Host "Restart the bot so it loads the new configuration value."
