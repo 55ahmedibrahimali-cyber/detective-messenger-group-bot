@@ -33,7 +33,12 @@
   },
   "optionalDependencies": {
     "@dongdev/fca-unofficial": "^4.0.3",
-    "facebook-chat-api": "github:bhhoang/fbapi-unofficial#a95fe05b201a4f33cc7a7a35efb34381fb76b947",
+    "facebook-chat-api": "https://codeload.github.com/bhhoang/fbapi-unofficial/tar.gz/a95fe05b201a4f33cc7a7a35efb34381fb76b947",
     "fca-azadx69x": "^3.0.1"
+  },
+  "overrides": {
+    "hridoy-fca": {
+      "fca-unofficial": "https://codeload.github.com/VangBanLaNhat/fca-unofficial/tar.gz/a8789a9fa021092ae06340ed746f5ce46f6272c1"
+    }
   }
 }
