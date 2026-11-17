@@ -38,7 +38,7 @@
   },
   "overrides": {
     "hridoy-fca": {
-      "fca-unofficial": "https://codeload.github.com/VangBanLaNhat/fca-unofficial/tar.gz/a8789a9fa021092ae06340ed746f5ce46f6272c1"
+      "fca-unofficial": "npm:@vangbanlanhat/fca-unofficial@1.4.6"
     }
   }
 }
