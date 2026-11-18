@@ -123,7 +123,7 @@ test("similar repeated queries skip sent pins and return the next image", async 
 
   await pin.tryHandle(ctx("بنترست قطط"), deps);
   await pin.idle();
-  now += 25_000;
+  now += 300_000;
   await pin.tryHandle(ctx("بنترست قطط لطيفة"), deps);
   await pin.idle();
 
@@ -148,7 +148,7 @@ test("identical image bytes under another pin ID are skipped too", async () => {
 
   await pin.tryHandle(ctx("بنترست قطط"), deps);
   await pin.idle();
-  now += 25_000;
+  now += 300_000;
   await pin.tryHandle(ctx("بنترست صور قطط"), deps);
   await pin.idle();
 
@@ -206,7 +206,11 @@ test("per-user cooldown, per-thread cooldown and in-flight guard", async () => {
   await pin.tryHandle(ctx("بنترست كلاب"), deps); // نفس المستخدم فوراً
   await pin.idle();
   assert.strictEqual(h.calls.search, 1);
-  now += 25_000;
+  now += 299_999;
+  await pin.tryHandle(ctx("بنترست كلاب"), deps);
+  await pin.idle();
+  assert.strictEqual(h.calls.search, 1);
+  now += 1;
   await pin.tryHandle(ctx("بنترست كلاب"), deps);
   await pin.idle();
   assert.strictEqual(h.calls.search, 2);
@@ -229,7 +233,7 @@ test("Pinterest search stops at ten searches per person per UTC day", async () =
   for (let index = 0; index < 10; index += 1) {
     await pin.tryHandle(ctx(`بنترست cat-${index}`), deps);
     await pin.idle();
-    now += 25_000;
+    now += 300_000;
   }
 
   _internal.reset();

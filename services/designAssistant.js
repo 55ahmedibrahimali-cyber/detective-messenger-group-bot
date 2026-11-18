@@ -636,6 +636,7 @@ async function tryHandle(context, messaging) {
 
 module.exports = {
   tryHandle,
+  isCommand: isDesignCommand,
   getReplyImage,
   _internal: {
     parseCommand,

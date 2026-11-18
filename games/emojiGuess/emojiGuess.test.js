@@ -12,12 +12,12 @@ test("emoji film puzzles are limited to titles in the supplied film data", () =>
     ["فيلم غير موجود"],
   ]);
   assert.deepEqual(prompts, [
-    { clue: "🦁 + 👑", answers: ["الأسد الملك", "ملك الغابة"] },
+    { clue: "🐾 + 🌅 + 👑", answers: ["الأسد الملك", "ملك الغابة"] },
   ]);
 });
 
 test("emoji-film rounds still accept a film title from an emoji clue", () => {
-  const prompt = { clue: "🦁 + 👑", answers: ["الأسد الملك"] };
+  const prompt = { clue: "🐾 + 🌅 + 👑", answers: ["الأسد الملك"] };
   assert.equal(
     createPromptRaceEngine._internal.isCorrect("emoji", prompt, "الأسد الملك"),
     true,

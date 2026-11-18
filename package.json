@@ -10,7 +10,12 @@
     "start": "node server.js",
     "start:telegram": "node telegram.js",
     "db:setup:telegram": "node telegram.js --setup-db",
-    "patterns": "node scripts/crimePatterns.js"
+    "renew:appstate": "node scripts/renewAppState.js",
+    "patterns": "node scripts/crimePatterns.js",
+    "appstate:status": "node scripts/renewAppState.js --status",
+    "appstate:unlock": "node scripts/renewAppState.js --unlock",
+    "deploy:aws": "bash deploy/aws/setup.sh",
+    "deploy:aws:update": "bash deploy/aws/setup.sh --update"
   },
   "engines": {
     "node": ">=20"

@@ -23,6 +23,17 @@ if (
   throw new Error("QUIET_HOURS must use hours from 0 to 23.");
 }
 
+// تجاوز ساعات الصمت في وقت التشغيل (null=الافتراضي، true=تفعيل الصمت، false=تعطيل الصمت)
+let quietOverride = null;
+
+function setQuietOverride(value) {
+  quietOverride = value === null ? null : Boolean(value);
+}
+
+function getQuietOverride() {
+  return quietOverride;
+}
+
 function positiveLimit(name, fallback) {
   const value = process.env[name];
   if (value === undefined || value === "") return fallback;
@@ -128,6 +139,7 @@ function pruneSends(now) {
 }
 
 function quietNow() {
+  if (quietOverride !== null) return quietOverride;
   if (!QUIET_HOURS) return false;
   const start = Number(QUIET_HOURS[1]);
   const end = Number(QUIET_HOURS[2]);
@@ -279,6 +291,9 @@ module.exports = {
   setOptOut,
   isOptOut: (userId) => optOut.has(String(userId)),
   privateBlockReason,
+  setQuietOverride,
+  getQuietOverride,
+  quietNow,
   status: () => ({
     paused: Date.now() < state.pausedUntil,
     pausedMs: pausedFor(),

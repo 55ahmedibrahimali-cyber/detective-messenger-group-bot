@@ -1,5 +1,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 const adminAuth = require("./adminAuth");
 const db = require("../database");
 
@@ -36,5 +39,21 @@ test("the owner cannot be blocked, even if a ban record exists", async () => {
   } finally {
     db.one = originalOne;
     db.query = originalQuery;
+  }
+});
+
+test("admin ID files are written with owner-only permissions", async (t) => {
+  if (process.platform === "win32") return t.skip("Unix file permissions only");
+
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "admin-auth-"));
+  const destination = path.join(directory, "admin-ids.json");
+  try {
+    await adminAuth._internal.persistAdminIds(["123456789"], destination);
+    assert.equal(fs.statSync(destination).mode & 0o777, 0o600);
+    assert.deepEqual(JSON.parse(fs.readFileSync(destination, "utf8")), {
+      adminIds: ["123456789"],
+    });
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
   }
 });

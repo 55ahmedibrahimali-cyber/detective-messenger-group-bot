@@ -18,7 +18,9 @@ const { acquireProcessLock } = require("./processLock");
 const { redact } = require("./logRedactor");
 const safety = require("./safety");
 const privateSendRetry = require("./privateSendRetry");
+const humanize = require("./humanize");
 const privateChatVerification = require("./privateChatVerification");
+const appstateRenewer = require("./appstateRenewer");
 
 // بعض نسخ FCA (forks) بتصدّر الدالة مباشرة، وبعضها جوه { login } أو default
 const FCA_NAME = process.env.FCA_MODULE || "fca-unofficial";
@@ -248,31 +250,43 @@ function die(reason) {
   console.error("\n❌ تعذّر الاتصال بحساب فيسبوك:", redact(text));
   if (hardBlock) {
     console.error(
-      "[messenger] أوقف البوت؛ لن تُعاد محاولة تسجيل الدخول تلقائياً بعد رفض Facebook لها.",
+      "[messenger] أوقف اتصال Messenger مؤقتاً؛ لن تُعاد محاولة تسجيل الدخول تلقائياً لتجنب حظر الحساب.",
     );
     console.error(
-      "راجع حالة الحساب وأكمل أي تحقق مطلوب عبر Facebook مباشرة. لا تكرر محاولات FCA أو تعدّل/تشارك ملفات appstate. هذا المشروع يستخدم واجهة غير رسمية؛ استخدم واجهات Meta الرسمية للتكامل المدعوم.",
+      "راجع حالة الحساب وأكمل أي تحقق مطلوب عبر Facebook مباشرة. لا تكرر محاولات FCA أو تعدّل/تشارك ملفات appstate.",
     );
-    return process.exit(1);
   }
   if (/retrieving userid/i.test(String(reason))) {
     explainMissingIdentityCookie();
-    return process.exit(1);
   }
+
+  const port = process.env.PORT || process.env.SERVER_PORT || 3000;
+  console.log(`\n🌐 [appstate] لوحة الإدارة وتجديد الجلسة تعمل الآن عبر المتصفح:`);
+  console.log(`   http://0.0.0.0:${port}/admin/appstate\n`);
+
+  if (typeof stopListening === "function") {
+    try { stopListening(); } catch { /* ignore */ }
+    stopListening = null;
+  }
+  healthy = false;
+
   console.error("الحل:");
   console.error(
     "1) افتح Facebook بحساب البوت وتأكد من عدم وجود checkpoint أو طلب تحقق.",
   );
   if (LOGIN_MODE === "password") {
     console.error(
-      "2) تحقق من FB_EMAIL وFB_PASSWORD في .env، وأكمل التحقق بخطوتين إن طُلب.",
+      "2) تحقق من FB_EMAIL وFB_PASSWORD ومفتاح 2FA في .env.",
     );
   } else {
     console.error(
-      "2) بعد نجاح الدخول، صدّر appstate.json جديداً للحساب نفسه وتأكد من مساره في APPSTATE_PATH.",
+      "2) بعد نجاح الدخول، صدّر appstate.json جديداً للحساب والصقه مباشرة في لوحة الإدارة أعلاه.",
     );
   }
-  process.exit(1);
+
+  if (process.env.EXIT_ON_SESSION_DIE === "1") {
+    return process.exit(1);
+  }
 }
 
 // ============================== طابور الإرسال ==============================
@@ -416,7 +430,11 @@ async function sendTo(
   for (const chunk of chunks) {
     try {
       const scheduledSend = () =>
-        schedule(() => rawSend(threadId, chunk, isSingleUser, allowOptOut));
+        schedule(async () => {
+          // سلوك بشري: "قراءة" ثم مؤشر كتابة بمدة تتناسب مع طول الرد، قبل الإرسال الفعلي
+          await humanize.beforeSend(api, threadId, chunk);
+          return rawSend(threadId, chunk, isSingleUser, allowOptOut);
+        });
       if (isSingleUser) {
         await privateSendRetry.sendWithPrivateRetry(scheduledSend, sleep);
       } else {
@@ -593,6 +611,7 @@ async function sendImage({ threadId, source, contentType, caption, isSingleUser 
     try {
       const info = await withTempImage(source, type, (file) =>
         schedule(() => {
+          humanize.markSeen(api, threadId);
           const attachment = createReadStream(file);
           attachment.filename = path.basename(file);
           attachment.contentType = type;
@@ -656,6 +675,7 @@ async function sendVideo({ threadId, buffer, caption, isSingleUser }) {
     try {
       const info = await withTempVideo(buffer, (file) =>
         schedule(() => {
+          humanize.markSeen(api, threadId);
           const attachment = createReadStream(file);
           attachment.filename = path.basename(file);
           attachment.contentType = "video/mp4";
@@ -749,6 +769,7 @@ async function sendImageBatch({ threadId, images, isSingleUser }) {
     try {
       const info = await withTempImages(checkedImages, (files) =>
         schedule(() => {
+          humanize.markSeen(api, threadId);
           const attachments = files.map(({ path: file, contentType }) => {
             const attachment = createReadStream(file);
             attachment.filename = path.basename(file);
@@ -938,6 +959,48 @@ async function getReactors(threadId, messageId) {
         .map(String),
     ),
   ];
+}
+
+function reactToMessage(threadId, messageId, reaction) {
+  if (!api) return Promise.reject(new Error("not logged in"));
+  if (typeof api.setMessageReaction !== "function") {
+    return Promise.reject(new Error("FCA does not provide setMessageReaction"));
+  }
+  const targetThread = String(threadId);
+  const targetMessage = String(messageId);
+  return schedule(() => {
+    if (FCA_NAME === "hridoy-fca") {
+      return api.setMessageReaction(
+        reaction,
+        targetMessage,
+        targetThread,
+        undefined,
+        true,
+      );
+    }
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = (error, value) => {
+        if (settled) return;
+        settled = true;
+        if (error) reject(error);
+        else resolve(value);
+      };
+      try {
+        const result = api.setMessageReaction.call(
+          api,
+          reaction,
+          targetMessage,
+          (error, value) => finish(error, value),
+        );
+        if (result && typeof result.then === "function")
+          result.then((value) => finish(null, value), finish);
+        else if (api.setMessageReaction.length < 3) finish(null, result);
+      } catch (error) {
+        finish(error);
+      }
+    });
+  });
 }
 
 // ============================== الأسماء ==============================
@@ -1161,17 +1224,21 @@ async function connectE2EE() {
 
 /** يحفظ الكوكيز فقط بعد ما الاتصال يثبت (مشفّرة إن وُجد APPSTATE_ENCRYPTION_KEY، وبصلاحيات المالك فقط) */
 function saveAppState() {
-  if (LOGIN_MODE === "password" || !api || !healthy) return;
+  if (!api || !healthy) return false;
   try {
-    const encrypted = secureStore.saveAppState(APPSTATE_PATH, api.getAppState());
+    const state = typeof api.getAppState === "function" ? api.getAppState() : null;
+    if (!Array.isArray(state) || state.length === 0) return false;
+    const encrypted = secureStore.saveAppState(APPSTATE_PATH, state);
     if (!encrypted && !warnedPlainAppState) {
       warnedPlainAppState = true;
       console.warn(
         "[security] appstate.json محفوظ بدون تشفير. أضف APPSTATE_ENCRYPTION_KEY (16 حرفاً فأكثر) في .env لتشفيره.",
       );
     }
+    return true;
   } catch (e) {
     console.error("[messenger] saveAppState:", e.message);
+    return false;
   }
 }
 
@@ -1192,7 +1259,21 @@ function attach() {
       healthy = false;
       const m = errText(err);
       console.error("[messenger] listen error:", m);
-      if (FATAL.test(m)) return die(m);
+      if (FATAL.test(m)) {
+        if (appstateRenewer.isAutoRenewEnabled()) {
+          console.warn("[messenger] رُفضت الجلسة؛ جاري محاولة تجديد appstate تلقائياً...");
+          appstateRenewer.renewFromCredentials().then((res) => {
+            if (res && res.ok) {
+              console.log("[messenger] ✅ تم تجديد الجلسة تلقائياً! إعادة الاتصال...");
+              reconnect();
+            } else {
+              die(m);
+            }
+          }).catch(() => die(m));
+          return;
+        }
+        return die(m);
+      }
       return reconnect();
     }
     if (event) handler(event);
@@ -1256,7 +1337,21 @@ async function reconnect() {
         console.error("[messenger] reconnect failed:", m);
         if (e && e.loginLocked) return process.exit(1);
         // لا نعيد المحاولة على جلسة مرفوضة/حساب موقوف: يزيد الأمر سوءاً. تدخّل يدوي مطلوب.
-        if (FATAL.test(m)) return die(m);
+        if (FATAL.test(m)) {
+        if (appstateRenewer.isAutoRenewEnabled()) {
+          console.warn("[messenger] رُفضت الجلسة؛ جاري محاولة تجديد appstate تلقائياً...");
+          appstateRenewer.renewFromCredentials().then((res) => {
+            if (res && res.ok) {
+              console.log("[messenger] ✅ تم تجديد الجلسة تلقائياً! إعادة الاتصال...");
+              reconnect();
+            } else {
+              die(m);
+            }
+          }).catch(() => die(m));
+          return;
+        }
+        return die(m);
+      }
         continue;
       }
       if (!reconnectRequested) return;
@@ -1306,6 +1401,11 @@ async function start(onEvent) {
     );
   }
   handler = onEvent;
+  appstateRenewer.setReconnectCallback(() => {
+    reconnectBackoff = 1000;
+    return reconnect();
+  });
+  appstateRenewer.setApiGetter(() => api);
   if (LOGIN_MODE !== "password") secureStore.warnIfLoose(APPSTATE_PATH);
   secureStore.warnIfLoose(path.join(__dirname, "..", ".env"));
   releaseProcessLock = acquireProcessLock(PROCESS_LOCK_PATH);
@@ -1330,6 +1430,13 @@ async function start(onEvent) {
     throw error;
   }
   setInterval(saveAppState, 30 * 60 * 1000);
+  appstateRenewer.startPeriodicRefresh(
+    () => api,
+    () => reconnect(),
+    process.env.APPSTATE_REFRESH_INTERVAL_MINUTES || 30,
+  );
+  appstateRenewer.setReconnectCallback(() => reconnect());
+  appstateRenewer.setApiGetter(() => api);
   if (process.env.AUTO_ACCEPT_REQUESTS !== "false") {
     // فحص طلبات الرسائل كل 3-5 دقائق (بدل كل دقيقة ثابتة): أقل نمطية وأقل طلبات على فيسبوك
     const base = Math.max(60, Number(process.env.ACCEPT_REQUESTS_SECONDS) || 240);
@@ -1358,6 +1465,7 @@ module.exports = {
   sendPrivateNotice,
   removeUserFromGroup,
   getReactors,
+  reactToMessage,
   getUserName,
   normalizeUserInfo,
   getUserProfile,
@@ -1372,4 +1480,8 @@ module.exports = {
       e2eeConnected || Boolean(api?.e2ee?.isConnected?.()),
   }),
   selfId: () => selfId,
+  reconnect: () => reconnect(),
+  saveAppState,
+  getApi: () => api,
+  clearLock: () => appstateRenewer.clearLock(),
 };

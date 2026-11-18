@@ -2,7 +2,10 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { createCommandCooldown } = require("./commandCooldown");
+const {
+  createCommandCooldown,
+  createIncomingCommandCooldown,
+} = require("./commandCooldown");
 
 test("command cooldowns are scoped by user and canonical command", () => {
   let now = 1000;
@@ -32,4 +35,45 @@ test("per-command limits can be longer or disabled", () => {
   assert.equal(isCoolingDown("user-1", "image-quality"), true);
   assert.equal(isCoolingDown("user-1", "resume-bot"), false);
   assert.equal(isCoolingDown("user-1", "resume-bot"), false);
+});
+
+test("incoming commands share a per-user cooldown across commands and chats", () => {
+  let now = 1000;
+  const isCoolingDown = createIncomingCommandCooldown({
+    cooldownMs: 10_000,
+    now: () => now,
+    isCommand: (text) => /^[/!]/.test(String(text || "")),
+    isExempt: (text) => String(text || "").includes("resume"),
+  });
+
+  assert.equal(
+    isCoolingDown({ userId: "user-1", platform: "messenger", text: "/help" }),
+    false,
+  );
+  assert.equal(
+    isCoolingDown({ userId: "user-1", platform: "messenger", text: "/games" }),
+    true,
+  );
+  assert.equal(
+    isCoolingDown({ userId: "user-2", platform: "messenger", text: "/help" }),
+    false,
+  );
+  assert.equal(
+    isCoolingDown({ userId: "user-1", platform: "telegram", text: "/help" }),
+    false,
+  );
+  assert.equal(
+    isCoolingDown({ userId: "user-1", platform: "messenger", text: "answer" }),
+    false,
+  );
+  assert.equal(
+    isCoolingDown({ userId: "user-1", platform: "messenger", text: "/resume" }),
+    false,
+  );
+
+  now += 10_000;
+  assert.equal(
+    isCoolingDown({ userId: "user-1", platform: "messenger", text: "/games" }),
+    false,
+  );
 });

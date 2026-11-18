@@ -5,6 +5,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 require('./services/logRedactor').install();
 process.env.BOT_PLATFORM = 'messenger';
 require('./services/configLoader').loadConfig();
+require('./services/securityCheck').run();
 
 const crimeAI = require('./games/crime/aiProvider');
 if (!crimeAI.getConfig().apiKey) {
@@ -29,6 +30,7 @@ const welcome = require('./services/welcome');
 const db = require('./database');
 const { createKeyedQueue } = require('./services/keyedQueue');
 const { createSlidingWindowRateLimiter } = require('./services/rateLimiter');
+const { createIncomingCommandCooldown } = require('./services/commandCooldown');
 
 // ----------------------------- حدود الأمان -----------------------------
 const MAX_TEXT_LENGTH = Number(process.env.MAX_INCOMING_TEXT) || 1000;
@@ -47,6 +49,22 @@ const rateLimited = createSlidingWindowRateLimiter(
   RATE_LIMIT_COUNT,
   RATE_LIMIT_WINDOW_MS,
 );
+const commandCoolingDown = createIncomingCommandCooldown({
+  cooldownMs: 10_000,
+  isCommand: (text) =>
+    /^\s*[/.!]/.test(String(text || '')) ||
+    gameManager.isRecognizedCommand(text) ||
+    Boolean(pinterest.parseCommand(text)) ||
+    Boolean(deviantArt.parseCommand(text)) ||
+    imageToVideo.isCommand(text) ||
+    Boolean(funCommands.parseCommand(text)) ||
+    animeEdit.isCommand(text) ||
+    designAssistant.isCommand(text) ||
+    /^\s*[/!]?\s*(?:جودة|quality|رفع_الجودة)(?:\s|$)/i.test(
+      String(text || ''),
+    ),
+  isExempt: (text) => gameManager.isBotControlCommand(text),
+});
 
 // طابور محدود لكل مجموعة / مستخدم خاص لتفادي تراكم الذاكرة عند بطء المعالجة.
 const enqueue = createKeyedQueue({
@@ -143,6 +161,24 @@ function onEvent(ev) {
       messageReply: ev.messageReply || null,
       attachments: Array.isArray(ev.attachments) ? ev.attachments : [],
     };
+    if (commandCoolingDown(context)) {
+      console.warn(
+        `[security] command cooldown: ignoring command from ${context.userId}`,
+      );
+      try {
+        await messenger.reactToMessage(
+          context.threadId,
+          context.messageId,
+          "❌",
+        );
+      } catch (error) {
+        console.warn(
+          "[security] failed to mark rate-limited command:",
+          redact(error.message || error),
+        );
+      }
+      return;
+    }
     if (
       gameManager.isBotPaused() ||
       gameManager.isBotControlCommand(context.text)
@@ -218,10 +254,17 @@ function onEvent(ev) {
     await db.assertSchema();
     await gameManager.assertSchemas();
     adminAuth.assertConfig();
-    await spyImageServer.start();
-    await messenger.start(onEvent);
-    gameManager.startTickers();
-    console.log('🕵️ Detective group bot is running');
+    const serverStarted = await spyImageServer.start();
+    const webPort = serverStarted?.port || process.env.PORT || 3000;
+    try {
+      await messenger.start(onEvent);
+      gameManager.startTickers();
+      console.log('🕵️ Detective group bot is running');
+    } catch (messengerErr) {
+      console.error('⚠️ تعذّر الاتصال بـ Messenger في الوقت الحالي:', messengerErr.error || messengerErr.message || messengerErr);
+      console.log(`🌐 خادم إدارة وتجديد الجلسة يعمل الآن! يمكنك الدخول على http://0.0.0.0:${webPort}/admin/appstate لتجديد الجلسة أو لصق كود appstate.json الجديد.`);
+      console.log('سيبقى السيرفر يعمل لتلقي الجلسة المجددة وتشغيل البوت تلقائياً.');
+    }
   } catch (e) {
     if (e.code === 'ECONNREFUSED') {
       const host = process.env.DB_HOST || '127.0.0.1';

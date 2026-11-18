@@ -126,6 +126,12 @@ test("repeated global commands are ignored during the command cooldown", async (
   }
 });
 
+test("recognized command detection excludes plain gameplay messages", () => {
+  assert.equal(gameManager.isRecognizedCommand("/games"), true);
+  assert.equal(gameManager.isRecognizedCommand("جاسوس"), true);
+  assert.equal(gameManager.isRecognizedCommand("إجابة عادية"), false);
+});
+
 test("every registered game help command produces its rules message", async () => {
   const originalSendGroup = msg.sendGroup;
   const messages = [];
@@ -473,6 +479,74 @@ test("the owner can resume the bot from automatic idle mode", async () => {
     gameManager._internal.setIdleClock(() => Date.now());
     gameManager._internal.resetIdleTimer();
     msg.sendPrivate = originalSendPrivate;
+  }
+});
+
+test("an admin can pause and resume the bot and check idle status", async () => {
+  const originalSendPrivate = msg.sendPrivate;
+  const originalSendGroup = msg.sendGroup;
+  const originalIsAdmin = adminAuth.isAdmin;
+  const originalIsOwner = adminAuth.isOwner;
+  const privateMessages = [];
+  const groupMessages = [];
+  msg.sendPrivate = async (_userId, text) => privateMessages.push(text);
+  msg.sendGroup = async (_threadId, text) => groupMessages.push(text);
+  adminAuth.isOwner = (id) => String(id) === "61555344774852";
+  adminAuth.isAdmin = (id) => String(id) === "61555344774852" || String(id) === "admin-123";
+
+  const adminContext = {
+    isGroup: false,
+    userId: "admin-123",
+    threadId: "admin-thread",
+  };
+  try {
+    await gameManager.handleMessage({
+      ...adminContext,
+      text: "/حالة السكون",
+    });
+    assert.match(privateMessages.at(-1), /حالة البوت/);
+
+    await gameManager.handleMessage({
+      ...adminContext,
+      text: "/إيقاف البوت",
+    });
+    assert.equal(gameManager.isBotPaused(), true);
+    assert.match(privateMessages.at(-1), /إيقاف البوت مؤقتًا/);
+
+    await gameManager.handleMessage({
+      isGroup: true,
+      userId: "regular-user",
+      threadId: "group-notice-thread",
+      text: "مرحبا",
+    });
+    assert.match(groupMessages.at(-1), /وضع السكون/);
+    const countAfterFirst = groupMessages.length;
+
+    await gameManager.handleMessage({
+      isGroup: true,
+      userId: "regular-user",
+      threadId: "group-notice-thread",
+      text: "الو",
+    });
+    assert.equal(groupMessages.length, countAfterFirst);
+
+    await gameManager.handleMessage({
+      ...adminContext,
+      text: "/تشغيل البوت",
+    });
+    assert.equal(gameManager.isBotPaused(), false);
+    assert.match(privateMessages.at(-1), /استئناف عمله/);
+  } finally {
+    if (gameManager.isBotPaused()) {
+      await gameManager.handleMessage({
+        ...adminContext,
+        text: "/تشغيل البوت",
+      });
+    }
+    adminAuth.isAdmin = originalIsAdmin;
+    adminAuth.isOwner = originalIsOwner;
+    msg.sendPrivate = originalSendPrivate;
+    msg.sendGroup = originalSendGroup;
   }
 });
 

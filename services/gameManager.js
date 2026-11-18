@@ -12,6 +12,7 @@ const stormLogo = require("./stormLogo");
 const imageQuality = require("./imageQuality");
 const { createIdlePause, IDLE_TIMEOUT_MS } = require("./idlePause");
 const { createCommandCooldown } = require("./commandCooldown");
+const safety = require("./safety");
 
 const registeredGames = [
   require("../games/crime"),
@@ -40,6 +41,7 @@ const registeredGames = [
 const games = new Map();
 const aliases = new Map();
 let botPaused = false;
+const pauseNotifiedThreads = new Set();
 let idleCheckTimer = null;
 let idleClock = () => Date.now();
 const idlePause = createIdlePause({
@@ -48,9 +50,18 @@ const idlePause = createIdlePause({
   isPaused: () => botPaused,
   onIdle: () => {
     botPaused = true;
+    pauseNotifiedThreads.clear();
     console.info(
       "[bot] دخل وضع الخمول بعد 15 دقيقة بلا نشاط؛ أرسل /تشغيل البوت في الخاص للاستئناف.",
     );
+    try {
+      if (adminAuth.ownerId) {
+        msg.sendPrivate(
+          adminAuth.ownerId,
+          "⏸️ دخل البوت في وضع السكون بعد 15 دقيقة من عدم النشاط لتوفير نشاط الحساب وحمايته.\nأرسل /تشغيل البوت للاستئناف في أي وقت.",
+        ).catch(() => {});
+      }
+    } catch (_) {}
   },
 });
 const isGlobalCommandCoolingDown = createCommandCooldown({
@@ -61,6 +72,7 @@ const isGlobalCommandCoolingDown = createCommandCooldown({
     ["storm-logo", 10_000],
     ["pause-bot", 0],
     ["resume-bot", 0],
+    ["idle-status", 3000],
     ["shutdown", 0],
   ]),
 });
@@ -119,8 +131,16 @@ const globalCommandEntries = [
   ["ايقاف_البوت", "pause-bot"],
   ["إيقاف البوت", "pause-bot"],
   ["ايقاف البوت", "pause-bot"],
+  ["سكون", "pause-bot"],
+  ["وضع_السكون", "pause-bot"],
+  ["وضع السكون", "pause-bot"],
   ["تشغيل_البوت", "resume-bot"],
   ["تشغيل البوت", "resume-bot"],
+  ["استئناف", "resume-bot"],
+  ["استئناف_البوت", "resume-bot"],
+  ["استئناف البوت", "resume-bot"],
+  ["حالة_السكون", "idle-status"],
+  ["حالة السكون", "idle-status"],
   ["إغلاق_البوت", "shutdown"],
   ["اغلاق_البوت", "shutdown"],
   ["إغلاق البوت", "shutdown"],
@@ -244,7 +264,13 @@ function globalCommandFor(text) {
 }
 
 function isBotControlCommand(text) {
-  return ["pause-bot", "resume-bot", "shutdown"].includes(globalCommandFor(text));
+  return ["pause-bot", "resume-bot", "shutdown", "idle-status"].includes(
+    globalCommandFor(text),
+  );
+}
+
+function isRecognizedCommand(text) {
+  return Boolean(globalCommandFor(text) || gameForCommand(text));
 }
 
 function gameForCommand(text) {
@@ -343,9 +369,22 @@ async function handleGlobalCommand(command, context) {
     if (command === "game-controls") return sendGameAvailability(context);
     return changeGameAvailability(command === "enable-game", context);
   }
+  if (command === "idle-status") {
+    if (!adminAuth.isAdmin(context.userId))
+      return reply(context, "⛔ هذا الأمر متاح لأدمن البوت فقط.");
+    const isPaused = botPaused;
+    const isQuiet = safety.quietNow();
+    const statusMsg = [
+      `📊 حالة البوت: ${isPaused ? "⏸️ في وضع السكون (متوقف مؤقتًا)" : "✅ يعمل بشكل طبيعي"}`,
+      `🌙 ساعات الصمت (حماية الحساب): ${isQuiet ? "مُفعلة حالياً" : "غير نشطة"}`,
+      `🛡️ حماية الحساب: نشطة تلقائياً بعد 15 دقيقة خمول.`,
+      isPaused ? "أرسل /تشغيل البوت للاستئناف." : "أرسل /وضع السكون لتفعيله يدوياً.",
+    ].join("\n");
+    return reply(context, statusMsg);
+  }
   if (command === "pause-bot" || command === "resume-bot") {
-    if (!adminAuth.isOwner(context.userId))
-      return reply(context, "⛔ إيقاف البوت وتشغيله متاحان لمالك البوت فقط.");
+    if (!adminAuth.isAdmin(context.userId))
+      return reply(context, "⛔ إيقاف البوت وتشغيله متاحان لمالك البوت فقط أو أدمن البوت.");
     if (context.isGroup)
       return msg.sendGroup(
         context.threadId,
@@ -355,14 +394,16 @@ async function handleGlobalCommand(command, context) {
       if (botPaused)
         return msg.sendPrivate(context.userId, "⏸️ البوت متوقف مؤقتًا بالفعل.");
       botPaused = true;
+      pauseNotifiedThreads.clear();
       return msg.sendPrivate(
         context.userId,
-        "⏸️ تم إيقاف البوت مؤقتًا. أرسل /تشغيل البوت لاستئناف عمله.",
+        "⏸️ تم إيقاف البوت مؤقتًا ودخوله في وضع السكون. أرسل /تشغيل البوت لاستئناف عمله.",
       );
     }
     if (!botPaused)
       return msg.sendPrivate(context.userId, "✅ البوت يعمل بالفعل.");
     botPaused = false;
+    pauseNotifiedThreads.clear();
     idlePause.resume();
     return msg.sendPrivate(context.userId, "✅ تم تشغيل البوت واستئناف عمله.");
   }
@@ -435,7 +476,7 @@ async function handleGlobalCommand(command, context) {
       : "";
     return reply(
       context,
-      `أوامر الأدمن:\n/حالة الاتصال، /إلغاء، /حظر <معرّف> [سبب]، /فك حظر <معرّف>، /المحظورين\n/طرد <معرّف> أو بالرد | /خصم نقاط <معرّف> <مبلغ> أو بالرد\n/متجر إضافة/حذف/سعر/وصف <رقم>\nالردود الثابتة: /رد أضف <محفز> | <رد>، /رد احذف <محفز>، /الردود الثابتة${ownerCommands}`,
+      `أوامر الأدمن:\n/إيقاف البوت، /تشغيل البوت، /حالة السكون\n/حالة الاتصال، /إلغاء، /حظر <معرّف> [سبب]، /فك حظر <معرّف>، /المحظورين\n/طرد <معرّف> أو بالرد | /خصم نقاط <معرّف> <مبلغ> أو بالرد\n/متجر إضافة/حذف/سعر/وصف <رقم>\nالردود الثابتة: /رد أضف <محفز> | <رد>، /رد احذف <محفز>، /الردود الثابتة${ownerCommands}`,
     );
   }
   if (command === "cancel") {
@@ -1025,7 +1066,19 @@ async function hasActiveGame(context) {
 async function handleMessage(context) {
   idlePause.check();
   const globalCommand = globalCommandFor(context.text);
-  if (botPaused && !isBotControlCommand(context.text)) return;
+  if (botPaused && !isBotControlCommand(context.text)) {
+    if (context.isGroup) {
+      const threadKey = String(context.threadId);
+      if (!pauseNotifiedThreads.has(threadKey)) {
+        pauseNotifiedThreads.add(threadKey);
+        msg.sendGroup(
+          context.threadId,
+          "⏸️ البوت في وضع السكون حالياً لتخفيف النشاط وحماية الحساب.\nيمكن للأدمن استئنافه بإرسال /تشغيل البوت في خاص البوت.",
+        ).catch(() => {});
+      }
+    }
+    return;
+  }
   if (globalCommand) {
     if (
       context.userId &&
@@ -1182,6 +1235,7 @@ async function assertSchemas() {
 
 module.exports = {
   handleMessage,
+  isRecognizedCommand,
   isBotControlCommand,
   isBotPaused: () => {
     idlePause.check();

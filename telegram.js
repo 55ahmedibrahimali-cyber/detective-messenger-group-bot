@@ -47,6 +47,7 @@ process.env.SAFETY_STATE_PATH =
   path.join(__dirname, ".nexca", "telegram-safety-state.json");
 process.env.BOT_PLATFORM = "telegram";
 require("./services/configLoader").loadConfig();
+require("./services/securityCheck").run();
 
 const { redact } = require("./services/logRedactor");
 const secureStore = require("./services/secureStore");
@@ -59,6 +60,20 @@ const deviantArt = require("./services/deviantArt");
 const welcome = require("./services/welcome");
 const adminAuth = require("./services/adminAuth");
 const telegramTransport = require("./services/telegram/messenger");
+const { createIncomingCommandCooldown } = require("./services/commandCooldown");
+
+const commandCoolingDown = createIncomingCommandCooldown({
+  cooldownMs: 10_000,
+  isCommand: (text) =>
+    /^\s*[/.!]/.test(String(text || "")) ||
+    manager.isRecognizedCommand(text) ||
+    Boolean(pinterest.parseCommand(text)) ||
+    Boolean(deviantArt.parseCommand(text)) ||
+    animeEdit.isCommand(text) ||
+    designAssistant.isCommand(text) ||
+    isQualityCommand(text),
+  isExempt: (text) => manager.isBotControlCommand(text),
+});
 
 function printUsage() {
   console.log(
@@ -434,6 +449,20 @@ async function sendMessage(chatId, text, withJoinButton = false) {
     );
   }
   return result;
+}
+
+function reactToMessage(chatId, messageId, emoji) {
+  const parsedMessageId = Number(messageId);
+  if (!Number.isSafeInteger(parsedMessageId) || parsedMessageId < 1) {
+    return Promise.reject(new TypeError("Invalid Telegram message ID."));
+  }
+  return enqueueSend(chatId, () =>
+    telegramCall("setMessageReaction", {
+      chat_id: actualChatId(chatId),
+      message_id: parsedMessageId,
+      reaction: [{ type: "emoji", emoji }],
+    }),
+  );
 }
 
 async function sendPhoto(chatId, buffer, contentType, caption = "") {
@@ -939,6 +968,26 @@ async function handleMessage(message) {
     context.text = context.text.slice(0, 1000);
   }
   if (
+    commandCoolingDown({
+      ...context,
+      platform: "telegram",
+    })
+  ) {
+    console.warn(
+      "[telegram] command cooldown: ignoring command from",
+      context.userId,
+    );
+    try {
+      await reactToMessage(context.threadId, context.messageId, "❌");
+    } catch (error) {
+      console.warn(
+        "[telegram] failed to mark rate-limited command:",
+        safeErrorMessage(error),
+      );
+    }
+    return;
+  }
+  if (
     isDesignCommand(context.text) ||
     isQualityCommand(context.text) ||
     animeEdit.isCommand(context.text)
@@ -1148,7 +1197,7 @@ module.exports = {
   groupSendHint,
   resolveMigratedChatId,
   rememberChatMigration,
-  _internal: { sendMediaGroup, isMp4Buffer },
+  _internal: { sendMediaGroup, reactToMessage, isMp4Buffer },
 };
 
 if (

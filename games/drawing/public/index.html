@@ -10,47 +10,161 @@
       :root {
         color-scheme: light;
         font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: #f5f7fc;
+        background: #f4f6ff;
         color: #172033;
         font-synthesis: none;
         text-rendering: optimizeLegibility;
         -webkit-tap-highlight-color: transparent;
+        --ink: #172033;
+        --muted: #65728b;
+        --line: #e3e8f3;
+        --accent: #535ee8;
+        --accent-dark: #3945c4;
       }
       * { box-sizing: border-box; }
-      body { margin: 0; min-height: 100vh; padding: 20px 14px max(24px, env(safe-area-inset-bottom)); }
-      main { width: min(100%, 860px); margin: 0 auto; }
-      .header { margin: 0 0 18px; text-align: center; }
-      h1 { margin: 0; font-size: clamp(1.45rem, 5vw, 2rem); line-height: 1.3; }
-      .subtitle { margin: 7px 0 0; color: #637087; font-size: .96rem; }
-      .card { padding: clamp(14px, 3vw, 22px); border: 1px solid #e4e9f2; border-radius: 20px; background: #fff; box-shadow: 0 12px 35px #26385b0c; }
-      .word-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; padding: 13px 16px; border: 1px solid #dce7ff; border-radius: 14px; background: #f0f5ff; }
-      .word-label { color: #50617d; font-size: .9rem; }
-      .word { color: #1948af; font-size: 1.45rem; font-weight: 800; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        padding: 28px 18px max(32px, env(safe-area-inset-bottom));
+        background:
+          radial-gradient(ellipse at 12% 4%, #dfe4ff 0, transparent 31rem),
+          radial-gradient(ellipse at 91% 26%, #e5f3ff 0, transparent 26rem),
+          #f4f6ff;
+      }
+      main { width: min(100%, 1120px); margin: 0 auto; }
+      .header {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 24px;
+        min-height: 210px;
+        margin-bottom: 22px;
+        padding: clamp(24px, 5vw, 44px);
+        overflow: hidden;
+        border: 1px solid #e4e8fb;
+        border-radius: 28px;
+        background: linear-gradient(115deg, #fff 10%, #f8f8ff 60%, #eef0ff 100%);
+        box-shadow: 0 18px 55px #25356e0c;
+        animation: rise-in .65s cubic-bezier(.2, .75, .25, 1) both;
+      }
+      .hero-copy { position: relative; z-index: 1; }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        margin: 0 0 12px;
+        color: var(--accent-dark);
+        font-size: .82rem;
+        font-weight: 750;
+        letter-spacing: .02em;
+      }
+      .live-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #26a269;
+        box-shadow: 0 0 0 4px #26a26920;
+        animation: pulse 2s ease-in-out infinite;
+      }
+      h1 { margin: 0; font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.18; letter-spacing: -.045em; }
+      .heading-highlight {
+        color: var(--accent);
+        background: linear-gradient(100deg, #4854de, #8464ed);
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .subtitle { max-width: 570px; margin: 12px 0 0; color: var(--muted); font-size: clamp(.95rem, 2vw, 1.06rem); line-height: 1.7; }
+      .hero-chips { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 20px; }
+      .hero-chip { padding: 8px 12px; border: 1px solid #e5e8f5; border-radius: 99px; background: #fff; color: #52607a; font-size: .82rem; font-weight: 650; }
+      .hero-art {
+        position: relative;
+        display: grid;
+        width: clamp(112px, 17vw, 168px);
+        aspect-ratio: 1;
+        place-items: center;
+        margin-inline: 8px 20px;
+        border: 1px solid #e5e5fb;
+        border-radius: 38% 62% 56% 44% / 46% 43% 57% 54%;
+        background: linear-gradient(145deg, #fff, #e8eaff);
+        box-shadow: 0 22px 42px #6267cf20, inset 0 0 0 10px #ffffff90;
+        animation: float 5s ease-in-out infinite;
+      }
+      .hero-art::before, .hero-art::after {
+        position: absolute;
+        content: "";
+        border: 1px dashed #9ca2f180;
+        border-radius: 50%;
+        inset: -11px;
+        transform: rotate(-18deg);
+      }
+      .hero-art::after { inset: 12px; border-style: solid; border-color: #fff; }
+      .hero-mark { z-index: 1; font-size: clamp(3.2rem, 7vw, 5.3rem); filter: drop-shadow(0 10px 8px #585fc033); transform: rotate(-12deg); }
+      .art-spark { position: absolute; z-index: 1; color: #f0a000; font-size: 1.5rem; }
+      .spark-one { top: 5%; right: 2%; }
+      .spark-two { bottom: 8%; left: 0; color: #6870ea; font-size: 1.15rem; }
+      .experience-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.65fr) minmax(245px, .75fr);
+        align-items: start;
+        gap: 18px;
+      }
+      .card, .guide-card {
+        min-width: 0;
+        padding: clamp(16px, 2.5vw, 26px);
+        border: 1px solid #e5e9f2;
+        border-radius: 22px;
+        background: #fff;
+        box-shadow: 0 16px 46px #26385b0d;
+        animation: rise-in .65s .1s cubic-bezier(.2, .75, .25, 1) both;
+      }
+      .guide-card { animation-delay: .2s; }
+      .workspace-heading { margin: 0 0 16px; }
+      .workspace-heading h2 { margin: 0; font-size: 1.2rem; }
+      .workspace-heading p { margin: 5px 0 0; color: var(--muted); font-size: .87rem; line-height: 1.5; }
+      .word-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; padding: 14px 16px; border: 1px solid #dfe4ff; border-radius: 15px; background: linear-gradient(110deg, #f1f3ff, #f8faff); }
+      .word-label { color: #53617d; font-size: .9rem; }
+      .word { color: var(--accent-dark); font-size: 1.45rem; font-weight: 800; }
       .tools { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(150px, 1.25fr); gap: 12px; margin-bottom: 12px; }
-      .control { min-width: 0; padding: 10px 12px; border: 1px solid #e4e9f2; border-radius: 13px; background: #fafbfe; }
+      .control { min-width: 0; padding: 11px 12px; border: 1px solid var(--line); border-radius: 14px; background: #fbfcff; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+      .control:focus-within { border-color: #aeb5ff; box-shadow: 0 0 0 4px #606be812; transform: translateY(-1px); }
       .control-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; color: #53617a; font-size: .86rem; font-weight: 650; }
-      select { width: 100%; min-height: 42px; padding: 7px 10px; border: 1px solid #d7deea; border-radius: 9px; background: #fff; color: inherit; font: inherit; }
-      input[type="range"] { width: 100%; margin: 8px 0 0; accent-color: #315ed8; }
-      .size-value { min-width: 2.4em; color: #1948af; text-align: left; }
+      select { width: 100%; min-height: 42px; padding: 7px 10px; border: 1px solid #d7deea; border-radius: 10px; background: #fff; color: inherit; font: inherit; }
+      input[type="range"] { width: 100%; margin: 8px 0 0; accent-color: var(--accent); }
+      .size-value { min-width: 2.4em; color: var(--accent-dark); text-align: left; }
       .actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
-      button { min-height: 48px; padding: 9px 10px; border: 1px solid #d7deea; border-radius: 11px; background: #fff; color: #26334b; font: inherit; font-weight: 650; cursor: pointer; touch-action: manipulation; }
-      button.danger { border-color: #efcaca; background: #fff5f5; color: #a32020; }
+      button { min-height: 48px; padding: 9px 10px; border: 1px solid #dfe3ed; border-radius: 12px; background: #fff; color: #26334b; font: inherit; font-weight: 650; cursor: pointer; touch-action: manipulation; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease; }
+      button:hover:not(:disabled) { transform: translateY(-2px); border-color: #b7c0f7; box-shadow: 0 7px 18px #3646a514; }
+      button.danger { border-color: #efcaca; background: #fff7f7; color: #a32020; }
       .cancel-row { margin-top: 10px; }
       .cancel-row button { width: 100%; }
-      button:active { transform: translateY(1px); }
+      button:active:not(:disabled) { transform: translateY(0); }
       button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid #9db8ff; outline-offset: 2px; }
-      button[aria-pressed="true"] { border-color: #315ed8; background: #eef3ff; color: #1948af; }
+      button[aria-pressed="true"] { border-color: #9da7f5; background: #f0f1ff; color: var(--accent-dark); }
       button:disabled { cursor: not-allowed; opacity: .55; }
-      .canvas-wrap { overflow: hidden; border: 2px solid #d7deea; border-radius: 14px; background: #fff; }
+      .canvas-wrap { overflow: hidden; border: 2px solid #dfe4ef; border-radius: 16px; background: #fff; box-shadow: 0 8px 24px #26385b0a; }
       canvas { display: block; width: 100%; height: auto; aspect-ratio: 8 / 5; background: #fff; touch-action: none; cursor: crosshair; }
-      .status-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 16px; margin-top: 13px; padding: 13px 15px; border-radius: 13px; background: #f6f8fc; }
+      .status-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 16px; margin-top: 14px; padding: 14px 15px; border: 1px solid #edf0f7; border-radius: 14px; background: #f8f9fd; }
       #status { min-width: 0; margin: 0; color: #43516a; line-height: 1.5; }
       .timers { display: grid; gap: 4px; text-align: left; }
       .timer { color: #53617a; font-size: .82rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
-      .timer strong { color: #1948af; font-size: 1rem; }
-      .progress { grid-column: 1 / -1; height: 6px; overflow: hidden; border-radius: 99px; background: #e2e8f4; }
-      .progress-bar { width: 100%; height: 100%; border-radius: inherit; background: #416ce0; transform: scaleX(1); transform-origin: right; transition: transform .45s linear; }
-      .hint { margin: 12px 2px 0; color: #6a778d; font-size: .87rem; line-height: 1.65; }
+      .timer strong { color: var(--accent-dark); font-size: 1rem; }
+      .progress { grid-column: 1 / -1; height: 7px; overflow: hidden; border-radius: 99px; background: #e4e7f2; }
+      .progress-bar { width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #785eea, #4d68e5); transform: scaleX(1); transform-origin: right; transition: transform .45s linear; }
+      .hint { margin: 12px 2px 0; color: var(--muted); font-size: .87rem; line-height: 1.65; }
+      .guide-card { position: relative; overflow: hidden; }
+      .guide-card::before { position: absolute; content: ""; width: 170px; height: 170px; top: -105px; left: -80px; border-radius: 50%; background: #edf0ff; }
+      .guide-heading { position: relative; display: flex; align-items: center; gap: 12px; }
+      .guide-icon { display: grid; width: 44px; height: 44px; flex: 0 0 auto; place-items: center; border-radius: 14px; background: #f0f0ff; font-size: 1.3rem; }
+      .guide-heading h2 { margin: 0; font-size: 1.12rem; }
+      .guide-heading p { margin: 3px 0 0; color: var(--muted); font-size: .83rem; }
+      .steps { display: grid; gap: 0; margin: 24px 0 0; padding: 0; list-style: none; }
+      .steps li { position: relative; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; min-height: 75px; }
+      .steps li:not(:last-child)::after { position: absolute; content: ""; top: 36px; right: 16px; bottom: 0; width: 1px; border-right: 1px dashed #cfd4e8; }
+      .step-number { z-index: 1; display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid #e1e4ff; border-radius: 11px; background: #f5f5ff; color: var(--accent-dark); font-size: .82rem; font-weight: 800; }
+      .steps h3 { margin: 2px 0 4px; font-size: .92rem; }
+      .steps p { margin: 0; color: var(--muted); font-size: .82rem; line-height: 1.55; }
+      .guide-note { margin-top: 4px; padding: 12px; border: 1px solid #f3e8c9; border-radius: 13px; background: #fffaf0; color: #716142; font-size: .8rem; line-height: 1.6; }
       .error { color: #a32020 !important; }
       .success { color: #17653b !important; }
       .round-overlay {
@@ -60,117 +174,178 @@
         align-items: center;
         justify-content: center;
         background: rgba(7, 14, 25, 0.76);
-        backdrop-filter: blur(4px);
+        backdrop-filter: blur(7px);
         z-index: 9999;
         padding: 24px;
         opacity: 0;
         visibility: hidden;
-        transition: opacity .25s ease, visibility .25s ease;
+        transition: opacity .3s ease, visibility .3s ease;
       }
-      .round-overlay.show {
-        opacity: 1;
-        visibility: visible;
-      }
+      .round-overlay.show { opacity: 1; visibility: visible; }
       .round-overlay-card {
         width: min(90vw, 440px);
-        padding: 28px 22px 24px;
+        padding: 30px 24px 26px;
         text-align: center;
-        background: linear-gradient(180deg, #ffffff 0%, #edf4ff 100%);
-        border: 4px solid rgba(49, 94, 216, 0.28);
-        border-radius: 28px;
+        background: linear-gradient(155deg, #fff 0%, #edf0ff 100%);
+        border: 1px solid #e0e4ff;
+        border-radius: 26px;
         box-shadow: 0 26px 75px rgba(17, 35, 71, 0.32);
-        transform: scale(.88);
-        transition: transform .25s ease;
+        transform: translateY(18px) scale(.96);
+        transition: transform .35s cubic-bezier(.2, .8, .2, 1);
       }
-      .round-overlay.show .round-overlay-card {
-        transform: scale(1);
+      .round-overlay.show .round-overlay-card { transform: translateY(0) scale(1); }
+      .round-overlay-title { margin: 0; font-size: clamp(2rem, 7vw, 3rem); line-height: 1.15; color: #10224c; }
+      .round-overlay-subtitle { margin: 12px 0 0; color: #4a5a76; font-size: clamp(1rem, 3vw, 1.18rem); line-height: 1.6; font-weight: 700; }
+      @keyframes rise-in {
+        from { opacity: 0; transform: translateY(16px); }
+        to { opacity: 1; transform: translateY(0); }
       }
-      .round-overlay-title {
-        margin: 0;
-        font-size: clamp(2rem, 7vw, 3rem);
-        line-height: 1.15;
-        color: #10224c;
+      @keyframes float {
+        0%, 100% { transform: translateY(0) rotate(-2deg); }
+        50% { transform: translateY(-8px) rotate(2deg); }
       }
-      .round-overlay-subtitle {
-        margin: 12px 0 0;
-        color: #4a5a76;
-        font-size: clamp(1rem, 3vw, 1.18rem);
-        line-height: 1.6;
-        font-weight: 700;
+      @keyframes pulse {
+        0%, 100% { box-shadow: 0 0 0 4px #26a26920; }
+        50% { box-shadow: 0 0 0 7px #26a26910; }
+      }
+      @media (max-width: 760px) {
+        body { padding-inline: 14px; }
+        .experience-grid { grid-template-columns: minmax(0, 1fr); }
+        .guide-card { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 0 22px; }
+        .guide-heading { grid-column: 1 / -1; }
+        .steps { margin-top: 18px; }
+        .guide-note { align-self: center; margin-top: 18px; }
       }
       @media (max-width: 520px) {
-        body { padding: 12px 10px max(16px, env(safe-area-inset-bottom)); }
-        .header { margin-bottom: 12px; }
-        .card { padding: 12px; border-radius: 16px; }
-        .word-card { margin-bottom: 10px; padding: 10px 12px; }
+        body { padding: 14px 10px max(20px, env(safe-area-inset-bottom)); }
+        .header { min-height: 0; grid-template-columns: minmax(0, 1fr) 82px; gap: 10px; margin-bottom: 14px; padding: 22px 18px; border-radius: 22px; }
+        .eyebrow { margin-bottom: 9px; font-size: .75rem; }
+        h1 { font-size: clamp(1.8rem, 8vw, 2.5rem); }
+        .subtitle { margin-top: 8px; font-size: .9rem; }
+        .hero-chips { gap: 6px; margin-top: 13px; }
+        .hero-chip { padding: 6px 9px; font-size: .73rem; }
+        .hero-art { width: 76px; margin: 0 0 0 4px; }
+        .hero-mark { font-size: 2.8rem; }
+        .art-spark { font-size: 1rem; }
+        .card, .guide-card { padding: 14px; border-radius: 17px; }
+        .workspace-heading { margin-bottom: 12px; }
+        .word-card { margin-bottom: 10px; padding: 11px 12px; }
         .tools { gap: 8px; margin-bottom: 8px; }
         .control { padding: 8px 9px; }
         .actions { gap: 6px; margin-bottom: 8px; }
         button { min-height: 46px; padding: 8px 5px; font-size: .91rem; }
-        .canvas-wrap { border-radius: 10px; }
+        .canvas-wrap { border-radius: 11px; }
         .status-card { margin-top: 9px; padding: 10px 11px; }
+        .guide-card { grid-template-columns: minmax(0, 1fr); }
+        .guide-heading { grid-column: auto; }
+        .steps { margin-top: 18px; }
+        .guide-note { margin-top: 8px; }
       }
       @media (max-width: 350px) {
+        .header { grid-template-columns: minmax(0, 1fr); }
+        .hero-art { display: none; }
         .tools { grid-template-columns: 1fr; }
         .actions { grid-template-columns: 1fr 1fr; }
         #eraser { grid-column: 1 / -1; }
       }
       @media (prefers-reduced-motion: reduce) {
-        *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+        *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
       }
     </style>
   </head>
   <body>
     <main>
       <header class="header">
-        <h1>🎨 ارسم وخمّن</h1>
-        <p class="subtitle">ارسم الكلمة السرية ودع مجموعتك تخمّنها!</p>
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="live-dot" aria-hidden="true"></span> تحدٍّ مباشر مع مجموعتك</p>
+          <h1>🎨 ارسم و<span class="heading-highlight">خلّيهم يخمّنون</span></h1>
+          <p class="subtitle">حوّل الكلمة السرية إلى رسمة، وخلي أصدقاءك يكتشفونها قبل انتهاء الوقت.</p>
+          <div class="hero-chips" aria-label="مميزات اللعبة">
+            <span class="hero-chip">✦ سهلة وسريعة</span>
+            <span class="hero-chip">♧ العبوا كفريق</span>
+          </div>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <span class="hero-mark">🖍️</span>
+          <span class="art-spark spark-one">✦</span>
+          <span class="art-spark spark-two">✧</span>
+        </div>
       </header>
-      <section class="card" aria-label="صفحة الرسم">
-        <div class="word-card">
-          <span class="word-label">الكلمة التي عليك رسمها</span>
-          <span class="word" id="word"></span>
-        </div>
-        <div class="tools">
-          <label class="control">
-            <span class="control-label">لون القلم</span>
-            <select id="color" aria-label="لون القلم">
-              <option value="#172033">⚫ أسود</option>
-              <option value="#d62828">🔴 أحمر</option>
-              <option value="#2359dc">🔵 أزرق</option>
-              <option value="#16834a">🟢 أخضر</option>
-              <option value="#f0a000">🟠 برتقالي</option>
-              <option value="#8c36b5">🟣 بنفسجي</option>
-            </select>
-          </label>
-          <label class="control" for="size">
-            <span class="control-label">حجم القلم <output class="size-value" id="sizeValue" for="size">8</output></span>
-            <input id="size" type="range" min="2" max="28" value="8" aria-label="حجم القلم">
-          </label>
-        </div>
-        <div class="actions">
-          <button id="undo" type="button" aria-label="التراجع عن آخر خط" disabled>↶ تراجع</button>
-          <button id="eraser" type="button" aria-pressed="false">⌫ ممحاة</button>
-          <button id="clear" type="button">مسح الكل</button>
-        </div>
-        <div class="canvas-wrap">
-          <canvas id="canvas" width="960" height="600" aria-label="مساحة الرسم. ارسم بإصبعك أو الماوس."></canvas>
-        </div>
-        <div class="status-card">
-          <p id="status" role="status" aria-live="polite">ابدأ الرسم؛ سيُرسل تلقائياً إلى المجموعة.</p>
-          <div class="timers">
-            <span class="timer">الجولة: <strong id="countdown">تبدأ مع الرسم</strong></span>
-            <span class="timer">الإرسال التالي: <strong id="sendCountdown">30 ث</strong></span>
+      <div class="experience-grid">
+        <section class="card" aria-label="صفحة الرسم">
+          <div class="workspace-heading">
+            <h2>مساحة الرسم</h2>
+            <p>ارسم بطريقتك، وسيشاهد فريقك آخر تحديث تلقائياً.</p>
           </div>
-          <div class="progress" role="progressbar" aria-label="الوقت حتى الإرسال التالي" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
-            <div class="progress-bar" id="progressBar"></div>
+          <div class="word-card">
+            <span class="word-label">الكلمة التي عليك رسمها</span>
+            <span class="word" id="word"></span>
           </div>
-        </div>
-        <div class="cancel-row">
-          <button id="cancel" class="danger" type="button">🚫 إلغاء الجولة</button>
-        </div>
-        <p class="hint">ارسم بإصبعك أو بالماوس. تُرسل أحدث رسمة إلى المجموعة كل <span id="interval"></span> ثانية. اترك الصفحة مفتوحة ولا تشاركها أو تكشف الكلمة.</p>
-      </section>
+          <div class="tools">
+            <label class="control">
+              <span class="control-label">لون القلم</span>
+              <select id="color" aria-label="لون القلم">
+                <option value="#172033">⚫ أسود</option>
+                <option value="#d62828">🔴 أحمر</option>
+                <option value="#2359dc">🔵 أزرق</option>
+                <option value="#16834a">🟢 أخضر</option>
+                <option value="#f0a000">🟠 برتقالي</option>
+                <option value="#8c36b5">🟣 بنفسجي</option>
+              </select>
+            </label>
+            <label class="control" for="size">
+              <span class="control-label">حجم القلم <output class="size-value" id="sizeValue" for="size">8</output></span>
+              <input id="size" type="range" min="2" max="28" value="8" aria-label="حجم القلم">
+            </label>
+          </div>
+          <div class="actions">
+            <button id="undo" type="button" aria-label="التراجع عن آخر خط" disabled>↶ تراجع</button>
+            <button id="eraser" type="button" aria-pressed="false">⌫ ممحاة</button>
+            <button id="clear" type="button">مسح الكل</button>
+          </div>
+          <div class="canvas-wrap">
+            <canvas id="canvas" width="960" height="600" aria-label="مساحة الرسم. ارسم بإصبعك أو الماوس."></canvas>
+          </div>
+          <div class="status-card">
+            <p id="status" role="status" aria-live="polite">ابدأ الرسم؛ سيُرسل تلقائياً إلى المجموعة.</p>
+            <div class="timers">
+              <span class="timer">الجولة: <strong id="countdown">تبدأ مع الرسم</strong></span>
+              <span class="timer">الإرسال التالي: <strong id="sendCountdown">30 ث</strong></span>
+            </div>
+            <div class="progress" role="progressbar" aria-label="الوقت حتى الإرسال التالي" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+              <div class="progress-bar" id="progressBar"></div>
+            </div>
+          </div>
+          <div class="cancel-row">
+            <button id="cancel" class="danger" type="button">🚫 إلغاء الجولة</button>
+          </div>
+          <p class="hint">ارسم بإصبعك أو بالماوس. تُرسل أحدث رسمة إلى المجموعة كل <span id="interval"></span> ثانية. اترك الصفحة مفتوحة ولا تشاركها أو تكشف الكلمة.</p>
+        </section>
+        <aside class="guide-card" aria-label="طريقة اللعب">
+          <div class="guide-heading">
+            <span class="guide-icon" aria-hidden="true">🧩</span>
+            <div>
+              <h2>كيف تلعب؟</h2>
+              <p>ثلاث خطوات وتبدأ المتعة</p>
+            </div>
+          </div>
+          <ol class="steps">
+            <li>
+              <span class="step-number">١</span>
+              <div><h3>اكتشف الكلمة</h3><p>الكلمة السرية تظهر لك وحدك.</p></div>
+            </li>
+            <li>
+              <span class="step-number">٢</span>
+              <div><h3>ارسمها بطريقتك</h3><p>اختر اللون والحجم، وابدأ على اللوحة.</p></div>
+            </li>
+            <li>
+              <span class="step-number">٣</span>
+              <div><h3>خلّي المجموعة تخمّن</h3><p>تصل رسوماتك تلقائياً أثناء الجولة.</p></div>
+            </li>
+          </ol>
+          <p class="guide-note">💡 تلميح: لا تكتب حروف الكلمة — خلي الرسم هو الدليل!</p>
+        </aside>
+      </div>
     </main>
     <script>
       const token = __DRAWING_TOKEN_JSON__;

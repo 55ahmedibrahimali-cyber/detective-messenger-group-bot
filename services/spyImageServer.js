@@ -4,6 +4,7 @@ const imageStore = require("./imageStore");
 const imageLinks = require("./spyImageLinks");
 const drawingWebServer = require("./drawingWebServer");
 const drawingTunnel = require("./drawingTunnel");
+const appstateRenewer = require("./appstateRenewer");
 const db = require("../database");
 
 let server = null;
@@ -32,6 +33,7 @@ function configuredPort() {
 
 async function handleRequest(req, res) {
   if (await drawingWebServer.handleRequest(req, res)) return;
+  if (await appstateRenewer.handleHttpRequest(req, res)) return;
   let url;
   try {
     url = new URL(req.url, "http://localhost");

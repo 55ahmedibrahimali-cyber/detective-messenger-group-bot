@@ -13,7 +13,7 @@ if (process.env.RECONNECT_CHILD === "1") {
   global.setTimeout = (callback, delay, ...args) =>
     nativeSetTimeout(
       callback,
-      delay >= 5000 && delay < 45000 ? 1 : delay,
+      delay >= 4000 && delay < 300000 && delay !== 45000 ? 1 : delay,
       ...args,
     );
   const stub = path.join(dir, "fca-stub.js");

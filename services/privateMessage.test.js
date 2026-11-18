@@ -39,6 +39,7 @@ if (process.env.PRIVATE_MESSAGE_CHILD === "1") {
   process.env.STRICT_PRIVATE = "1";
   process.env.SEND_DELAY_MIN_MS = "1";
   process.env.SEND_DELAY_MAX_MS = "1";
+  process.env.HUMANIZE_ENABLED = "0";
   const safety = require("./safety");
   const messenger = require("./messengerFacebook");
 

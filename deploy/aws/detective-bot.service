@@ -1,0 +1,32 @@
+[Unit]
+Description=Detective Messenger group bot (AWS)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# غيّر اسم المستخدم حسب نظامك (ubuntu على Amazon Linux 2 / ubuntu AMI)
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/detective-bot
+ExecStart=/usr/bin/node /opt/detective-bot/server.js
+
+# إعادة التشغيل عند الفشل فقط (exit code != 0)
+Restart=on-failure
+RestartSec=30s
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+# متغيرات البيئة - عدّل المسار أو استخدم EnvironmentFile
+EnvironmentFile=/opt/detective-bot/.env
+
+# الأمان
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+# حدود الموارد (اضبطها حسب نوع الـ instance)
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

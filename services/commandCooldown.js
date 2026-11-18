@@ -44,4 +44,28 @@ function createCommandCooldown({
   return isCommandCoolingDown;
 }
 
-module.exports = { createCommandCooldown };
+function createIncomingCommandCooldown({
+  cooldownMs = 10_000,
+  isCommand,
+  isExempt = () => false,
+  now = Date.now,
+} = {}) {
+  if (typeof isCommand !== "function")
+    throw new TypeError("Incoming command cooldown requires a command detector.");
+  if (typeof isExempt !== "function")
+    throw new TypeError("Incoming command cooldown exemption must be a function.");
+
+  const isCoolingDown = createCommandCooldown({
+    defaultCooldownMs: cooldownMs,
+    now,
+  });
+  return function isIncomingCommandCoolingDown({ userId, platform, text } = {}) {
+    if (!userId || !isCommand(text) || isExempt(text)) return false;
+    return isCoolingDown(
+      `${String(platform || "messenger")}:${String(userId)}`,
+      "all-commands",
+    );
+  };
+}
+
+module.exports = { createCommandCooldown, createIncomingCommandCooldown };

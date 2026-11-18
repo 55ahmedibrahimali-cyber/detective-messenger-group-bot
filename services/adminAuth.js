@@ -9,6 +9,23 @@ let adminIds = new Set();
 let configError = null;
 let persistQueue = Promise.resolve();
 
+async function persistAdminIds(ids, destination = configPath) {
+  const temporaryPath = `${destination}.${process.pid}.tmp`;
+  try {
+    await fsPromises.writeFile(
+      temporaryPath,
+      `${JSON.stringify({ adminIds: ids }, null, 2)}\n`,
+      { encoding: "utf8", flag: "w", mode: 0o600 },
+    );
+    if (process.platform !== "win32")
+      await fsPromises.chmod(temporaryPath, 0o600);
+    await fsPromises.rename(temporaryPath, destination);
+  } catch (error) {
+    await fsPromises.rm(temporaryPath, { force: true });
+    throw error;
+  }
+}
+
 try {
   const parsed = JSON.parse(fs.readFileSync(configPath, "utf8"));
   const ids = Array.isArray(parsed) ? parsed : parsed.adminIds;
@@ -48,18 +65,7 @@ function addAdmin(userId) {
   const operation = persistQueue.then(async () => {
     if (adminIds.has(id)) return false;
     const updatedIds = [...adminIds, id];
-    const temporaryPath = `${configPath}.${process.pid}.tmp`;
-    try {
-      await fsPromises.writeFile(
-        temporaryPath,
-        `${JSON.stringify({ adminIds: updatedIds }, null, 2)}\n`,
-        { encoding: "utf8", flag: "w" },
-      );
-      await fsPromises.rename(temporaryPath, configPath);
-    } catch (error) {
-      await fsPromises.rm(temporaryPath, { force: true });
-      throw error;
-    }
+    await persistAdminIds(updatedIds);
     adminIds = new Set(updatedIds);
     return true;
   });
@@ -77,18 +83,7 @@ function removeAdmin(userId) {
   const operation = persistQueue.then(async () => {
     if (!adminIds.has(id)) return false;
     const updatedIds = [...adminIds].filter((adminId) => adminId !== id);
-    const temporaryPath = `${configPath}.${process.pid}.tmp`;
-    try {
-      await fsPromises.writeFile(
-        temporaryPath,
-        `${JSON.stringify({ adminIds: updatedIds }, null, 2)}\n`,
-        { encoding: "utf8", flag: "w" },
-      );
-      await fsPromises.rename(temporaryPath, configPath);
-    } catch (error) {
-      await fsPromises.rm(temporaryPath, { force: true });
-      throw error;
-    }
+    await persistAdminIds(updatedIds);
     adminIds = new Set(updatedIds);
     return true;
   });
@@ -99,8 +94,10 @@ function removeAdmin(userId) {
 module.exports = {
   isAdmin,
   isOwner,
+  ownerId: OWNER_ID,
   ownerName: OWNER_NAME,
   addAdmin,
   removeAdmin,
   assertConfig,
+  _internal: { persistAdminIds },
 };

@@ -447,7 +447,7 @@ async function startGame(roomId) {
     for (const player of players) {
       const text =
         String(player.psid) === state.judgeId
-          ? "🎩 أنت القاضي في حاول تهرب. أرسل في الخاص للبوت سؤال الجولة الأولى؛ السؤال سيصل للمتسابقين في الخاص."
+          ? "🎩 أنت القاضي في حاول تهرب. أرسل سؤالاً يحتاج إلى تفكير أو استنتاج في الخاص للبوت؛ سيصل السؤال للمتسابقين في الخاص."
           : "🎭 أنت متسابق في حاول تهرب. انتظر سؤال القاضي في الخاص، ثم أرسل أسوأ إجابة تخطر ببالك.";
       const result = await sendPrivateChecked(player.psid, text);
       if (!result.ok)
@@ -469,7 +469,7 @@ async function acceptQuestion(room, state, question) {
   if (cleanQuestion.length < 3 || cleanQuestion.length > 500)
     return msg.sendPrivate(
       state.judgeId,
-      "أرسل سؤالاً واضحاً لا يتجاوز 500 حرف.",
+      "أرسل سؤالاً واضحاً يحتاج إلى تفكير أو استنتاج، ولا يتجاوز 500 حرف.",
     );
 
   const players = aliveContestants(await getPlayers(room.id), state);

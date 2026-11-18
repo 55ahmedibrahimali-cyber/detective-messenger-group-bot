@@ -33,7 +33,7 @@ function envInt(name, fallback, min, max) {
 const cfg = () => ({
   enabled: process.env.PINTEREST_ENABLED !== "0",
   maxImages: envInt("PINTEREST_MAX_IMAGES", 5, 1, 10),
-  userCooldownMs: envInt("PINTEREST_USER_COOLDOWN_SECONDS", 20, 0, 3600) * 1000,
+  userCooldownMs: envInt("PINTEREST_USER_COOLDOWN_SECONDS", 300, 0, 3600) * 1000,
   threadCooldownMs: envInt("PINTEREST_THREAD_COOLDOWN_SECONDS", 8, 0, 3600) * 1000,
   maxRequestsPerHour: envInt("PINTEREST_MAX_REQUESTS_PER_HOUR", 60, 1, 10000),
   maxImagesPerHour: envInt("PINTEREST_MAX_IMAGES_PER_HOUR", 100, 1, 10000),
@@ -616,7 +616,7 @@ telegram.js — نفس الشيء داخل enqueueUpdate قبل aiChat.tryHandle
 
 .env (اختياري):
   PINTEREST_MAX_IMAGES=5                 # أقصى صور في الطلب (الحد الأعلى 10)
-  PINTEREST_USER_COOLDOWN_SECONDS=20
+  PINTEREST_USER_COOLDOWN_SECONDS=300
   PINTEREST_THREAD_COOLDOWN_SECONDS=8
   PINTEREST_MAX_REQUESTS_PER_HOUR=60
   PINTEREST_MAX_IMAGES_PER_HOUR=100
