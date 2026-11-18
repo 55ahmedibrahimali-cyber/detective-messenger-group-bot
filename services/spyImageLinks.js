@@ -11,8 +11,10 @@ let secretPromise;
 function publicBaseUrl() {
   const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN?.trim();
   const value =
-    process.env.SPY_IMAGE_PUBLIC_BASE_URL?.trim() ||
+    process.env.DRAWING_PUBLIC_BASE_URL?.trim() ||
+    process.env.DRAWING_PUBLIC_URL?.trim() ||
     process.env.PUBLIC_URL?.trim() ||
+    process.env.SPY_IMAGE_PUBLIC_BASE_URL?.trim() ||
     process.env.RENDER_EXTERNAL_URL?.trim() ||
     (railwayDomain
       ? /^[a-z][a-z\d+.-]*:\/\//i.test(railwayDomain)
@@ -25,22 +27,21 @@ function publicBaseUrl() {
   try {
     url = new URL(value);
   } catch {
-    throw new Error("SPY_IMAGE_PUBLIC_BASE_URL must be an absolute URL.");
+    throw new Error("PUBLIC_URL / SPY_IMAGE_PUBLIC_BASE_URL must be an absolute URL.");
   }
   if (
     !["https:", "http:"].includes(url.protocol) ||
     url.username ||
     url.password ||
     url.search ||
-    url.hash ||
-    (url.protocol !== "https:" &&
-    !["localhost", "127.0.0.1", "::1", "[::1]"].includes(url.hostname))
-  )
+    url.hash
+  ) {
     throw new Error(
-      "SPY_IMAGE_PUBLIC_BASE_URL must use HTTPS and contain only the public origin.",
+      "PUBLIC_URL must be a valid HTTP or HTTPS URL (e.g. http://ip:port or https://domain.com).",
     );
+  }
   if (url.pathname !== "/" && url.pathname !== "")
-    throw new Error("SPY_IMAGE_PUBLIC_BASE_URL must not include a path.");
+    throw new Error("PUBLIC_URL must not include a path.");
   return url.origin;
 }
 

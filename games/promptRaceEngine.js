@@ -2,6 +2,7 @@ const db = require("../database");
 const msg = require("../services/messenger");
 const leaderboard = require("../services/leaderboard");
 const { answerHint, answerText } = require("./puzzleHelpers");
+const humanReplies = require("../services/humanReplies");
 
 function normalize(value) {
   return String(value || "")
@@ -326,9 +327,9 @@ function createPromptRaceEngine({
     }
     if (hints.has(commandName)) {
       if (room.hintUsed)
-        return msg.sendGroup(context.threadId, "💡 استُخدم تلميح هذا السؤال بالفعل.");
+        return msg.sendGroup(context.threadId, "💡 استُخدم تلميح هذا السؤال بالفعل.", { fast: true });
       room.hintUsed = true;
-      return msg.sendGroup(context.threadId, `💡 ${answerHint(room.prompt)}`);
+      return msg.sendGroup(context.threadId, `💡 ${answerHint(room.prompt)}`, { fast: true });
     }
     if (skips.has(commandName)) {
       const answer = answerText(room.prompt.answers);
@@ -336,19 +337,52 @@ function createPromptRaceEngine({
       return msg.sendGroup(
         context.threadId,
         `⏭️ تم تخطي السؤال. الإجابة الصحيحة: ${answer}.`,
+        { fast: true },
       );
     }
-    if (!isCorrect(kind, room.prompt, text)) return;
+    const answerMatch = isCorrect(kind, room.prompt, text);
 
-    await finish(context.threadId, room, context.userId);
-    const answer =
-      kind === "ordering"
-        ? room.prompt.answers.map((item) => item[0]).join("، ")
-        : room.prompt.answers[0];
-    return msg.sendGroup(
-      context.threadId,
-      `✅ ${answer} — نقطة لـ${await msg.getUserName(context.userId)}.`,
-    );
+    // --- الإجابة صحيحة (أول شخص فقط) ---
+    if (answerMatch) {
+      if (room.finished) return; // سبق لشخص آخر الفوز
+      room.finished = true;
+
+      if (context.messageId && typeof msg.reactToMessage === "function") {
+        msg.reactToMessage(context.threadId, context.messageId, "✅").catch(() => {});
+      }
+
+      const winnerName = String((await msg.getUserName(context.userId)) || "صاحبنا").slice(0, 60);
+      humanReplies.registerPlayer(String(context.userId), winnerName);
+
+      await finish(context.threadId, room, context.userId);
+      const answer =
+        kind === "ordering"
+          ? room.prompt.answers.map((item) => item[0]).join("، ")
+          : room.prompt.answers[0];
+
+      const praise = humanReplies.correctReply(String(context.userId), winnerName);
+      return msg.sendGroup(
+        context.threadId,
+        `${praise}\n✅ الإجابة: ${answer}`,
+        { fast: true },
+      );
+    }
+
+    // --- الإجابة خاطئة ---
+    const wrongName = String((await msg.getUserName(context.userId)) || "أخوي").slice(0, 60);
+    humanReplies.registerPlayer(String(context.userId), wrongName);
+
+    if (!room.wrongAnswerers) room.wrongAnswerers = new Map();
+    room.wrongAnswerers.set(String(context.userId), wrongName);
+
+    // عند وجود أكثر من إجابة خاطئة (كل 3 محاولات خاطئة)، نختار أحدهم عشوائياً ونرد عليه بتهكم مرح
+    room.wrongCount = (room.wrongCount || 0) + 1;
+    if (room.wrongCount % 3 === 0 && room.wrongAnswerers.size > 0) {
+      const entries = [...room.wrongAnswerers.entries()];
+      const [randomId, randomName] = entries[Math.floor(Math.random() * entries.length)];
+      const sarcasticReply = humanReplies.wrongReply(randomId, randomName);
+      await msg.sendGroup(context.threadId, sarcasticReply, { fast: true });
+    }
   }
 
   async function cancelActiveGame(userId, threadId, isAdmin = false) {

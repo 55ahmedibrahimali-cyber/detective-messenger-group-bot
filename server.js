@@ -260,6 +260,14 @@ function onEvent(ev) {
       await messenger.start(onEvent);
       gameManager.startTickers();
       console.log('🕵️ Detective group bot is running');
+      try {
+        const botNotify = require('./services/botNotify');
+        botNotify.alert(
+          'البوت متصل ويعمل الآن 🚀',
+          'تم تشغيل بوت المحقق على السيرفر بنجاح ونظام الألعاب نشط ومستعد.',
+          'success'
+        ).catch(() => {});
+      } catch (_) {}
     } catch (messengerErr) {
       console.error('⚠️ تعذّر الاتصال بـ Messenger في الوقت الحالي:', messengerErr.error || messengerErr.message || messengerErr);
       console.log(`🌐 خادم إدارة وتجديد الجلسة يعمل الآن! يمكنك الدخول على http://0.0.0.0:${webPort}/admin/appstate لتجديد الجلسة أو لصق كود appstate.json الجديد.`);

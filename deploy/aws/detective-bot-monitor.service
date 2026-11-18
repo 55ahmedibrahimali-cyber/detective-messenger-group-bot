@@ -1,0 +1,29 @@
+[Unit]
+Description=Detective Bot Monitor (Python) - تنبيهات تيليجرام للمالك مباشرة
+After=network-online.target detective-bot.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/detective-bot/python/monitor
+
+# يستخدم venv المثبت في /opt/detective-bot/python/.venv
+ExecStart=/opt/detective-bot/python/.venv/bin/python3 /opt/detective-bot/python/monitor/monitor.py
+
+# إعادة التشغيل دائماً عند أي خطأ — مع تأخير 15 ثانية لتجنب دوّامة الأخطاء
+Restart=always
+RestartSec=15s
+StartLimitIntervalSec=0
+
+# يقرأ المتغيرات من .env المشترك مع البوت الرئيسي
+EnvironmentFile=-/opt/detective-bot/.env
+
+# PYTHONPATH يتعرف على مجلد monitor
+Environment=PYTHONPATH=/opt/detective-bot/python/monitor
+
+StandardOutput=append:/opt/detective-bot/python/monitor/monitor.log
+StandardError=append:/opt/detective-bot/python/monitor/monitor.log
+
+[Install]
+WantedBy=multi-user.target

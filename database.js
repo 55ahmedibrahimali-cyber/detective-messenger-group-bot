@@ -175,6 +175,47 @@ async function assertSchema() {
       PRIMARY KEY (game_id, image_key)
     ) ENGINE=InnoDB`,
   );
+  await query(
+    `CREATE TABLE IF NOT EXISTS app_user_accounts (
+      psid VARCHAR(64) NOT NULL PRIMARY KEY,
+      password_hash VARCHAR(255) NOT NULL,
+      display_name VARCHAR(100) NOT NULL,
+      avatar_url VARCHAR(500) NULL,
+      theme VARCHAR(50) NOT NULL DEFAULT 'dark',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB`,
+  );
+  await query(
+    `CREATE TABLE IF NOT EXISTS app_verification_codes (
+      psid VARCHAR(64) NOT NULL PRIMARY KEY,
+      code VARCHAR(10) NOT NULL,
+      expires_at BIGINT UNSIGNED NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB`,
+  );
+  await query(
+    `CREATE TABLE IF NOT EXISTS app_private_messages (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      sender_id VARCHAR(64) NOT NULL,
+      recipient_id VARCHAR(64) NOT NULL,
+      sender_name VARCHAR(100) NOT NULL,
+      text TEXT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      KEY idx_private_recipient (recipient_id, id),
+      KEY idx_private_sender (sender_id, id)
+    ) ENGINE=InnoDB`,
+  );
+  await query(
+    `CREATE TABLE IF NOT EXISTS app_security_alerts (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      user_id VARCHAR(64) NOT NULL,
+      user_name VARCHAR(100) NOT NULL,
+      event_type VARCHAR(50) NOT NULL,
+      details VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB`,
+  );
   const requiredTables = ['cases_pool', 'case_clues', 'game_rooms', 'room_players', 'votes', 'game_image_cache'];
   const rows = await query(
     'SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=?',

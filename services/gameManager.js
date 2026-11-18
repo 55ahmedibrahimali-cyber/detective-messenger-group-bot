@@ -195,6 +195,14 @@ const globalCommandEntries = [
   ["mypermissions", "permissions"],
   ["صلاحيات", "permissions"],
   ["صلاحياتي", "permissions"],
+  ["كود", "get-app-code"],
+  ["رمز", "get-app-code"],
+  ["تسجيل", "get-app-code"],
+  ["code", "get-app-code"],
+  ["معرفي", "get-my-id"],
+  ["معرف", "get-my-id"],
+  ["id", "get-my-id"],
+  ["myid", "get-my-id"],
 ];
 const globalCommandAliases = new Set(
   globalCommandEntries.map(([alias]) => alias.toLowerCase()),
@@ -361,11 +369,37 @@ async function handleGlobalCommand(command, context) {
   if (command === "help") return sendGeneralHelp(context);
   if (command === "game-help") return sendGameHelp(context);
   if (command === "games") return sendGamesList(context);
+  if (command === "get-my-id") {
+    const isOwner = adminAuth.isOwner(context.userId);
+    const isAdmin = adminAuth.isAdmin(context.userId);
+    const roleText = isOwner ? " (👑 مالك البوت)" : (isAdmin ? " (🛡️ أدمن البوت)" : "");
+    const msgText = [
+      `🆔 معرّف حسابك: ${context.userId}${roleText}`,
+      `للحصول على رمز تسجيل الدخول في التطبيق، أرسل أمر: /كود`
+    ].join("\n");
+    return reply(context, msgText);
+  }
+  if (command === "get-app-code") {
+    const inAppChat = require("./inAppChat");
+    const code = await inAppChat.generateVerificationCode(context.userId);
+    const msgText = [
+      `⚡ رمز التسجيل في تطبيق ستورم بوت (Storm Bot):`,
+      `👉 ${code} 👈`,
+      `⏱️ الرمز صالح لمدة 15 دقيقة فقط.`,
+      `🆔 معرّفك هو: ${context.userId}`,
+      `استخدم المعرّف وهذا الرمز لتعيين كلمة السر الخاصة بك في التطبيق.`
+    ].join("\n");
+    if (context.isGroup) {
+      await msg.sendGroup(context.threadId, "📩 تم إرسال كود التسجيل لك في المحادثة الخاصة مع البوت لحماية أمان حسابك!");
+      return msg.sendPrivate(context.userId, msgText);
+    }
+    return msg.sendPrivate(context.userId, msgText);
+  }
   if (command.startsWith("fixed-reply-"))
     return handleFixedReplyCommand(command, context);
   if (["disable-game", "enable-game", "game-controls"].includes(command)) {
-    if (!adminAuth.isOwner(context.userId))
-      return reply(context, "⛔ إدارة تشغيل الألعاب متاحة لمالك البوت فقط.");
+    if (!adminAuth.isAdmin(context.userId))
+      return reply(context, "⛔ إدارة تشغيل الألعاب والأوامر متاحة لأدمن ومالك البوت فقط.");
     if (command === "game-controls") return sendGameAvailability(context);
     return changeGameAvailability(command === "enable-game", context);
   }
@@ -1063,6 +1097,16 @@ async function hasActiveGame(context) {
   return Boolean(await findActiveGameForPlayer(context.userId));
 }
 
+const CONTROLLABLE_COMMANDS = [
+  { id: "leaderboard", name: "ترتيب النقاط (التصنيف)", command: "/التصنيف", aliases: ["leaderboard", "top"] },
+  { id: "my-points", name: "عرض نقاطي", command: "/نقاطي", aliases: ["my-points"] },
+  { id: "point-store", name: "متجر النقاط والمشتريات", command: "/متجر", aliases: ["point-store"] },
+  { id: "storm-logo", name: "إضافة شعار على الصور", command: "/شعار", aliases: ["storm-logo"] },
+  { id: "image-quality", name: "رفع جودة الصور الذكي", command: "/جودة", aliases: ["image-quality"] },
+  { id: "fixed-reply", name: "الردود الثابتة التلقائية", command: "/الردود الثابتة", aliases: ["fixed-reply-add", "fixed-reply-remove", "fixed-reply-list"] },
+  { id: "test-image", name: "اختبار إرسال الصور", command: "/صورة", aliases: ["test-image"] },
+];
+
 async function handleMessage(context) {
   idlePause.check();
   const globalCommand = globalCommandFor(context.text);
@@ -1088,6 +1132,15 @@ async function handleMessage(context) {
       )
     )
       return;
+    const controllable = CONTROLLABLE_COMMANDS.find(
+      (c) => c.id === globalCommand || c.aliases.includes(globalCommand),
+    );
+    if (controllable && !(await gameAvailability.isEnabled(controllable.id))) {
+      return reply(
+        context,
+        `⏸️ أمر (${controllable.name}) متوقف حالياً من قِبل إدارة البوت.`,
+      );
+    }
     return handleGlobalCommand(globalCommand, context);
   }
 
@@ -1237,6 +1290,14 @@ module.exports = {
   handleMessage,
   isRecognizedCommand,
   isBotControlCommand,
+  getRegisteredGames: () =>
+    [...games.values()].map((g) => ({
+      id: g.id,
+      name: g.name,
+      startCommand: g.startCommand,
+      helpCommand: g.helpCommand,
+    })),
+  CONTROLLABLE_COMMANDS,
   isBotPaused: () => {
     idlePause.check();
     return botPaused;

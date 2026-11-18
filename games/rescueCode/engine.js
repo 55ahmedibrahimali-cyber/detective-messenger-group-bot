@@ -541,7 +541,7 @@ async function advanceRound(room, state, players) {
   );
 }
 
-async function handleGuess(roomId, threadId, userId, text) {
+async function handleGuess(roomId, threadId, userId, text, messageId = null) {
   const guess = parseGuess(text);
   if (!guess)
     return msg.sendGroup(
@@ -563,6 +563,9 @@ async function handleGuess(roomId, threadId, userId, text) {
 
     const answer = state.puzzles[state.round - 1].code;
     if (guess === answer) {
+      if (messageId && typeof msg.reactToMessage === "function") {
+        msg.reactToMessage(threadId, messageId, "✅").catch(() => {});
+      }
       state.guesses.push({ psid: String(userId), guess, exact: 4, misplaced: 0 });
       return advanceRound(room, state, players);
     }
@@ -688,9 +691,9 @@ async function handleGroup(context, parsed) {
       "الأدلة سرية؛ أرسل /معلومة الإنقاذ للبوت في الخاص.",
     );
   if (parsed.name === "رمز")
-    return handleGuess(room.id, context.threadId, context.userId, parsed.arg);
+    return handleGuess(room.id, context.threadId, context.userId, parsed.arg, context.messageId);
   if (/^[0-9٠-٩۰-۹]{4}$/.test(parsed.clean))
-    return handleGuess(room.id, context.threadId, context.userId, parsed.clean);
+    return handleGuess(room.id, context.threadId, context.userId, parsed.clean, context.messageId);
 }
 
 async function handlePrivate(context, parsed) {

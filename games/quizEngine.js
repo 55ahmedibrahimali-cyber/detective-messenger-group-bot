@@ -2,6 +2,7 @@ const db = require("../database");
 const msg = require("../services/messenger");
 const leaderboard = require("../services/leaderboard");
 const { answerHint, answerText } = require("./puzzleHelpers");
+const humanReplies = require("../services/humanReplies");
 
 function normalizeAnswer(value) {
   const arabicDigits = "٠١٢٣٤٥٦٧٨٩";
@@ -139,11 +140,12 @@ function createQuizEngine({ id, name, startAliases, helpAliases, questions }) {
 
     if (hints.has(commandName)) {
       if (room.hintUsed)
-        return msg.sendGroup(context.threadId, "💡 استُخدم تلميح هذا السؤال بالفعل.");
+        return msg.sendGroup(context.threadId, "💡 استُخدم تلميح هذا السؤال بالفعل.", { fast: true });
       room.hintUsed = true;
       return msg.sendGroup(
         context.threadId,
         `💡 ${answerHint(room.question)}`,
+        { fast: true },
       );
     }
 
@@ -153,6 +155,7 @@ function createQuizEngine({ id, name, startAliases, helpAliases, questions }) {
       return msg.sendGroup(
         context.threadId,
         `⏭️ تم تخطي السؤال. الإجابة الصحيحة: ${answer}.`,
+        { fast: true },
       );
     }
 
@@ -162,15 +165,48 @@ function createQuizEngine({ id, name, startAliases, helpAliases, questions }) {
       (candidate) => isCloseAnswer(answer, normalizeAnswer(candidate)),
     );
 
-    if (!isCorrect) return;
+    // --- الإجابة صحيحة ---
+    if (isCorrect) {
+      // تفاعل فوري بـ ✅
+      if (context.messageId && typeof msg.reactToMessage === "function") {
+        msg.reactToMessage(context.threadId, context.messageId, "✅").catch(() => {});
+      }
 
-    room.finished = true;
-    await finishRoom(context.threadId, room, context.userId);
-    const correctAnswer = room.question.answers[0];
-    return msg.sendGroup(
-      context.threadId,
-      `✅ صحيح: ${correctAnswer}. نقطة لـ${await msg.getUserName(context.userId)}.`,
-    );
+      // تسجيل اللاعب وجلب اسمه من الماسنجر مباشرة
+      const winnerName = String((await msg.getUserName(context.userId)) || "صاحبنا").slice(0, 60);
+      humanReplies.registerPlayer(String(context.userId), winnerName);
+
+      // في حالة أكثر من شخص أجاب صح — نختار الأول فقط (أول من أرسل)
+      if (room.finished) return; // شخص آخر سبقه
+      room.finished = true;
+
+      await finishRoom(context.threadId, room, context.userId);
+      const correctAnswer = room.question.answers[0];
+      const replyText = humanReplies.correctReply(String(context.userId), winnerName);
+      return msg.sendGroup(
+        context.threadId,
+        `${replyText}\n✅ الإجابة: ${correctAnswer}`,
+        { fast: true },
+      );
+    }
+
+    // --- الإجابة خاطئة ---
+    // نسجّل الاسم في الخلفية بدون رد فوري (لتجميع المخطئين)
+    const wrongName = String((await msg.getUserName(context.userId)) || "أخوي").slice(0, 60);
+    humanReplies.registerPlayer(String(context.userId), wrongName);
+
+    // نضيف المخطئ لقائمة المخطئين في الجولة
+    if (!room.wrongAnswerers) room.wrongAnswerers = new Map();
+    room.wrongAnswerers.set(String(context.userId), wrongName);
+
+    // رد تهكمي عشوائي على واحد منهم كل 3 إجابات خاطئة (لتجنب الإزعاج)
+    room.wrongCount = (room.wrongCount || 0) + 1;
+    if (room.wrongCount % 3 === 0 && room.wrongAnswerers.size > 0) {
+      const entries = [...room.wrongAnswerers.entries()];
+      const [randomId, randomName] = entries[Math.floor(Math.random() * entries.length)];
+      const wrongReply = humanReplies.wrongReply(randomId, randomName);
+      await msg.sendGroup(context.threadId, wrongReply, { fast: true });
+    }
   }
 
   async function cancelActiveGame(userId, threadId, isAdmin = false) {

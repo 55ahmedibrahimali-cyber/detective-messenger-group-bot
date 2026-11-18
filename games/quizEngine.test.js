@@ -91,3 +91,74 @@ test("quiz rounds pick a question without choices and finish on the first correc
     Math.random = originals.random;
   }
 });
+
+test("quiz engine reacts with checkmark to the first correct answer", async () => {
+  const reactions = [];
+  const originalReact = msg.reactToMessage;
+  const originalSendGroup = msg.sendGroup;
+  const originalOne = db.one;
+  const originalQuery = db.query;
+  const originalUserName = msg.getUserName;
+  const originalRecordPoints = leaderboard.recordPoints;
+
+  msg.reactToMessage = async (threadId, messageId, emoji) => {
+    reactions.push({ threadId, messageId, emoji });
+    return true;
+  };
+  msg.sendGroup = async () => true;
+  msg.getUserName = async () => "لاعب";
+  leaderboard.recordPoints = async () => 1;
+  db.one = async () => null;
+  db.query = async () => ({ insertId: 10, affectedRows: 1 });
+
+  const engine = createQuizEngine({
+    id: "quiz-react-test",
+    name: "اختبار التفاعل",
+    startAliases: ["سؤال"],
+    helpAliases: ["قواعدالسؤال"],
+    questions: [{ text: "ما لون السماء؟", answers: ["أزرق"] }],
+  });
+
+  try {
+    const threadId = "quiz-react-thread";
+    await engine.handleMessage({
+      isGroup: true,
+      threadId,
+      userId: "user-1",
+      messageId: "msg-start",
+      text: "سؤال",
+    });
+
+    // إجابة خاطئة
+    await engine.handleMessage({
+      isGroup: true,
+      threadId,
+      userId: "user-2",
+      messageId: "msg-wrong",
+      text: "أحمر",
+    });
+    assert.equal(reactions.length, 0);
+
+    // إجابة صحيحة -> تفاعل فوري بـ ✅
+    await engine.handleMessage({
+      isGroup: true,
+      threadId,
+      userId: "user-1",
+      messageId: "msg-correct",
+      text: "ازرق",
+    });
+    assert.equal(reactions.length, 1);
+    assert.deepEqual(reactions[0], {
+      threadId,
+      messageId: "msg-correct",
+      emoji: "✅",
+    });
+  } finally {
+    msg.reactToMessage = originalReact;
+    msg.sendGroup = originalSendGroup;
+    db.one = originalOne;
+    db.query = originalQuery;
+    msg.getUserName = originalUserName;
+    leaderboard.recordPoints = originalRecordPoints;
+  }
+});

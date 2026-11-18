@@ -1,0 +1,384 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_app">
+
+    <!-- Top Sleek Header / Toolbar -->
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:background="@color/bg_surface"
+        android:elevation="2dp"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingEnd="16dp"
+            android:gravity="center_vertical">
+
+            <!-- Title & Subtitle -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/toolbarTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="ستورم بوت ⚡"
+                    android:textColor="@color/text_primary"
+                    android:textSize="17sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/toolbarSubtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="متصل بالسيرفر"
+                    android:textColor="@color/accent_emerald"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <!-- User Badge & Profile Button -->
+            <LinearLayout
+                android:id="@+id/userProfileContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:background="@drawable/bg_chip_pill"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="5dp">
+
+                <TextView
+                    android:id="@+id/toolbarUserBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="👑 لايت (المالك)"
+                    android:textColor="@color/accent_gold"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/btnChangeUser"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_marginStart="6dp"
+                    android:src="@drawable/ic_dashboard_tab"
+                    app:tint="@color/text_secondary" />
+            </LinearLayout>
+
+        </RelativeLayout>
+
+    </androidx.appcompat.widget.Toolbar>
+
+    <!-- Linear Progress Indicator -->
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/progressBar"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:indeterminate="true"
+        android:visibility="gone"
+        app:indicatorColor="@color/primary_brand"
+        app:layout_constraintTop_toBottomOf="@id/toolbar" />
+
+    <!-- 1. Live Chat Container -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/chatContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/bottomNavigation"
+        app:layout_constraintTop_toBottomOf="@id/progressBar">
+
+        <!-- Quick Action Command Chips (Discord/Telegram Bot Quick Buttons) -->
+        <HorizontalScrollView
+            android:id="@+id/chatQuickChipsScroll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/bg_app"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="6dp"
+            android:scrollbars="none"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnQuickCrime"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_marginEnd="6dp"
+                    android:text="🎮 /جريمة"
+                    android:textColor="@color/accent_cyan"
+                    android:textSize="12sp"
+                    app:backgroundTint="@color/chip_bg"
+                    app:cornerRadius="18dp" />
+
+                <Button
+                    android:id="@+id/btnQuickWerewolf"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_marginEnd="6dp"
+                    android:text="🐺 /ذئب"
+                    android:textColor="@color/accent_cyan"
+                    android:textSize="12sp"
+                    app:backgroundTint="@color/chip_bg"
+                    app:cornerRadius="18dp" />
+
+                <Button
+                    android:id="@+id/btnQuickCulture"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_marginEnd="6dp"
+                    android:text="📚 /ثقافة"
+                    android:textColor="@color/accent_cyan"
+                    android:textSize="12sp"
+                    app:backgroundTint="@color/chip_bg"
+                    app:cornerRadius="18dp" />
+
+                <Button
+                    android:id="@+id/btnQuickFlags"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_marginEnd="6dp"
+                    android:text="🚩 /اعلام"
+                    android:textColor="@color/accent_cyan"
+                    android:textSize="12sp"
+                    app:backgroundTint="@color/chip_bg"
+                    app:cornerRadius="18dp" />
+
+                <Button
+                    android:id="@+id/btnQuickTop"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_marginEnd="6dp"
+                    android:text="🏆 /التصنيف"
+                    android:textColor="@color/accent_gold"
+                    android:textSize="12sp"
+                    app:backgroundTint="@color/chip_bg"
+                    app:cornerRadius="18dp" />
+
+                <Button
+                    android:id="@+id/btnQuickPoints"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_marginEnd="6dp"
+                    android:text="⭐ /نقاطي"
+                    android:textColor="@color/accent_gold"
+                    android:textSize="12sp"
+                    app:backgroundTint="@color/chip_bg"
+                    app:cornerRadius="18dp" />
+
+                <Button
+                    android:id="@+id/btnQuickCancel"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="❌ /الغاء"
+                    android:textColor="@color/accent_rose"
+                    android:textSize="12sp"
+                    app:backgroundTint="@color/chip_bg"
+                    app:cornerRadius="18dp" />
+
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <!-- Messages RecyclerView -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvChatMessages"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:clipToPadding="false"
+            android:paddingBottom="8dp"
+            app:layout_constraintBottom_toTopOf="@id/chatInputLayout"
+            app:layout_constraintTop_toBottomOf="@id/chatQuickChipsScroll" />
+
+        <!-- Chat Input Bar (Floating Modern Discord / Telegram Pill Bar) -->
+        <LinearLayout
+            android:id="@+id/chatInputLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/bg_surface"
+            android:elevation="4dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="8dp"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_chat_input"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="14dp">
+
+                <EditText
+                    android:id="@+id/etChatMessage"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@null"
+                    android:hint="@string/chat_hint"
+                    android:singleLine="true"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_muted"
+                    android:textSize="14.5sp" />
+            </LinearLayout>
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/btnSendMessage"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:contentDescription="إرسال"
+                app:backgroundTint="@color/primary_brand"
+                app:fabCustomSize="46dp"
+                app:maxImageSize="22dp"
+                app:srcCompat="@drawable/ic_send_24"
+                app:tint="@android:color/white" />
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- 2. Games & Commands Management Container -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/gamesContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:background="@color/bg_app"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/bottomNavigation"
+        app:layout_constraintTop_toBottomOf="@id/progressBar">
+
+        <!-- Filter Chips -->
+        <HorizontalScrollView
+            android:id="@+id/chipsScroll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="8dp"
+            android:scrollbars="none"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chipGroupFilter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:singleSelection="true">
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipAll"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="@string/filter_all"
+                    android:textColor="@color/text_primary"
+                    app:chipBackgroundColor="@color/chip_bg"
+                    app:chipStrokeColor="@color/chip_stroke" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipGames"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/filter_games"
+                    android:textColor="@color/text_primary"
+                    app:chipBackgroundColor="@color/chip_bg"
+                    app:chipStrokeColor="@color/chip_stroke" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipCommands"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/filter_commands"
+                    android:textColor="@color/text_primary"
+                    app:chipBackgroundColor="@color/chip_bg"
+                    app:chipStrokeColor="@color/chip_stroke" />
+
+            </com.google.android.material.chip.ChipGroup>
+        </HorizontalScrollView>
+
+        <!-- Pull-to-refresh List -->
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/swipeRefreshGames"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/chipsScroll">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvGames"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingBottom="16dp" />
+
+        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- 3. Main WebView -->
+    <WebView
+        android:id="@+id/webView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toTopOf="@id/extractButton"
+        app:layout_constraintTop_toBottomOf="@id/progressBar" />
+
+    <!-- Floating Action Button for Extracting Appstate -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/extractButton"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_margin="12dp"
+        android:text="@string/extract_appstate"
+        android:textColor="@android:color/white"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:backgroundTint="@color/primary_brand"
+        app:cornerRadius="14dp"
+        app:icon="@drawable/ic_dashboard_tab"
+        app:iconTint="@android:color/white"
+        app:layout_constraintBottom_toTopOf="@id/bottomNavigation" />
+
+    <!-- Bottom Navigation (5 tabs) -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNavigation"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:background="@color/bg_surface"
+        app:elevation="8dp"
+        app:itemActiveIndicatorStyle="@style/Widget.Material3.BottomNavigationView.ActiveIndicator"
+        app:itemIconSize="22dp"
+        app:itemIconTint="@color/text_primary"
+        app:itemTextColor="@color/text_primary"
+        app:labelVisibilityMode="labeled"
+        app:menu="@menu/bottom_nav_menu"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

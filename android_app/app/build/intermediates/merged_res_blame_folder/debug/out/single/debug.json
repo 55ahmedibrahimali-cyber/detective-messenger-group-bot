@@ -1,0 +1,78 @@
+[
+    {
+        "merged": "C:\\Users\\moham\\.gradle\\daemon\\8.4\\com.detective.bot.app-merged_res-33:\\xml_network_security_config.xml.flat",
+        "source": "C:\\Users\\moham\\.gradle\\daemon\\8.4\\com.detective.bot.app-main-35:\\xml\\network_security_config.xml"
+    },
+    {
+        "merged": "com.detective.bot.app-merged_res-33:/drawable_bg_avatar_circle.xml.flat",
+        "source": "com.detective.bot.app-main-35:/drawable/bg_avatar_circle.xml"
+    },
+    {
+        "merged": "com.detective.bot.app-merged_res-33:/menu_bottom_nav_menu.xml.flat",
+        "source": "com.detective.bot.app-main-35:/menu/bottom_nav_menu.xml"
+    },
+    {
+        "merged": "com.detective.bot.app-merged_res-33:/drawable_ic_ip_tab.xml.flat",
+        "source": "com.detective.bot.app-main-35:/drawable/ic_ip_tab.xml"
+    },
+    {
+        "merged": "C:\\Users\\moham\\.gradle\\daemon\\8.4\\com.detective.bot.app-merged_res-33:\\layout_item_chat_message.xml.flat",
+        "source": "C:\\Users\\moham\\.gradle\\daemon\\8.4\\com.detective.bot.app-main-35:\\layout\\item_chat_message.xml"
+    },
+    {
+        "merged": "com.detective.bot.app-merged_res-33:/drawable_ic_games_tab.xml.flat",
+        "source": "com.detective.bot.app-main-35:/drawable/ic_games_tab.xml"
+    },
+    {
+        "merged": "com.detective.bot.app-merged_res-33:/drawable_bg_chip_pill.xml.flat",
+        "source": "com.detective.bot.app-main-35:/drawable/bg_chip_pill.xml"
+    },
+    {
+        "merged": "com.detective.bot.app-merged_res-33:/layout_activity_main.xml.flat",
+        "source": "com.detective.bot.app-main-35:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.detective.bot.app-merged_res-33:/layout_item_game_control.xml.flat",
+        "source": "com.detective.bot.app-main-35:/layout/item_game_control.xml"
+    },
+    {
+        "merged": "C:\\Users\\moham\\.gradle\\daemon\\8.4\\com.detective.bot.app-merged_res-33:\\layout_activity_main.xml.flat",
+        "source": "C:\\Users\\moham\\.gradle\\daemon\\8.4\\com.detective.bot.app-main-35:\\layout\\activity_main.xml"
+    },
+    {
+        "merged": "com.detective.bot.app-merged_res-33:/drawable_ic_send_24.xml.flat",
+        "source": "com.detective.bot.app-main-35:/drawable/ic_send_24.xml"
+    },
+    {
+        "merged": "com.detective.bot.app-merged_res-33:/drawable_bg_chat_input.xml.flat",
+        "source": "com.detective.bot.app-main-35:/drawable/bg_chat_input.xml"
+    },
+    {
+        "merged": "com.detective.bot.app-merged_res-33:/layout_item_chat_message.xml.flat",
+        "source": "com.detective.bot.app-main-35:/layout/item_chat_message.xml"
+    },
+    {
+        "merged": "com.detective.bot.app-merged_res-33:/drawable_ic_dashboard_tab.xml.flat",
+        "source": "com.detective.bot.app-main-35:/drawable/ic_dashboard_tab.xml"
+    },
+    {
+        "merged": "C:\\Users\\moham\\.gradle\\daemon\\8.4\\com.detective.bot.app-merged_res-33:\\layout_item_game_control.xml.flat",
+        "source": "C:\\Users\\moham\\.gradle\\daemon\\8.4\\com.detective.bot.app-main-35:\\layout\\item_game_control.xml"
+    },
+    {
+        "merged": "com.detective.bot.app-merged_res-33:/drawable_ic_chat_tab.xml.flat",
+        "source": "com.detective.bot.app-main-35:/drawable/ic_chat_tab.xml"
+    },
+    {
+        "merged": "C:\\Users\\moham\\.gradle\\daemon\\8.4\\com.detective.bot.app-merged_res-33:\\menu_bottom_nav_menu.xml.flat",
+        "source": "C:\\Users\\moham\\.gradle\\daemon\\8.4\\com.detective.bot.app-main-35:\\menu\\bottom_nav_menu.xml"
+    },
+    {
+        "merged": "com.detective.bot.app-merged_res-33:/drawable_bg_badge_pill.xml.flat",
+        "source": "com.detective.bot.app-main-35:/drawable/bg_badge_pill.xml"
+    },
+    {
+        "merged": "com.detective.bot.app-merged_res-33:/drawable_ic_proxy_tab.xml.flat",
+        "source": "com.detective.bot.app-main-35:/drawable/ic_proxy_tab.xml"
+    }
+]

@@ -258,13 +258,17 @@ async function handleMessage(context) {
     room.history.push({ question: text.slice(0, 1000), answer: result.answer });
     room.history = room.history.slice(-8);
     if (result.correctGuess) {
+      if (context.messageId && typeof msg.reactToMessage === "function") {
+        msg.reactToMessage(context.threadId, context.messageId, "✅").catch(() => {});
+      }
       await finishRoom(context.threadId, room, context.userId);
       return msg.sendGroup(
         context.threadId,
         `✅ صحيح! الشخصية هي ${room.character.name} من أنمي ${room.character.anime}. نقطة لـ${await msg.getUserName(context.userId)}.`,
+        { fast: true },
       );
     }
-    return msg.sendGroup(context.threadId, result.answer);
+    return msg.sendGroup(context.threadId, result.answer, { fast: true });
   } catch (error) {
     console.error("[anime-guess] Cloudflare request failed:", error.message);
     return msg.sendGroup(

@@ -518,6 +518,7 @@ async function handleHint(room, state, player) {
   return msg.sendGroup(
     room.thread_id,
     `🔎 تلميح الدليل ${state.round} (كلف ${player.display_name} مفتاحاً): ${currentClue(state).hint}`,
+    { fast: true },
   );
 }
 
@@ -585,6 +586,9 @@ async function handleGroup(context, parsed) {
     if (currentState.stage === "clue") {
       if (!isCorrectAnswer(parsed.clean, currentClue(currentState).answers))
         return;
+      if (context.messageId && typeof msg.reactToMessage === "function") {
+        msg.reactToMessage(context.threadId, context.messageId, "✅").catch(() => {});
+      }
       return advanceClue(currentRoom, currentState, currentPlayers, currentPlayer);
     }
 
@@ -595,11 +599,15 @@ async function handleGroup(context, parsed) {
       !isCorrectAnswer(parsed.clean, currentState.trail.final.answers)
     )
       return;
+    if (context.messageId && typeof msg.reactToMessage === "function") {
+      msg.reactToMessage(context.threadId, context.messageId, "✅").catch(() => {});
+    }
     return finishGame(
       currentRoom,
       currentState,
       [currentPlayer],
       `🏆 ${currentPlayer.display_name} فتح الصندوق وعثر على الكنز! حصل على نقطة.`,
+      { fast: true },
     );
   });
 }

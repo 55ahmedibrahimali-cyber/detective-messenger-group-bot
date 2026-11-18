@@ -1,0 +1,26 @@
+<resources>
+    <string name="app_name">ستورم بوت | Storm Bot</string>
+    <string name="nav_chat">الشات واللعب 💬</string>
+    <string name="nav_games">الألعاب والأوامر</string>
+    <string name="nav_dashboard">الداشبورد</string>
+    <string name="nav_fb_proxy">تسجيل فيسبوك</string>
+    <string name="nav_ip_check">فحص الـ IP</string>
+    <string name="extract_appstate">سحب الجلسة وحفظها للسيرفر 🚀</string>
+    <string name="extracting">جارٍ سحب وحفظ الجلسة...</string>
+    <string name="success_title">نجاح العملية ✅</string>
+    <string name="success_msg">تم استخراج appstate.json وتطبيقه على السيرفر وإعادة تشغيل البوت بنجاح!</string>
+    <string name="not_logged_in">لم يتم اكتشاف تسجيل الدخول بعد. سجل دخولك أولاً في فيسبوك.</string>
+    <string name="games_title">الألعاب والأوامر (تحكم فوري)</string>
+    <string name="chat_title">شات الألعاب المباشر 🎮</string>
+    <string name="filter_all">الكل</string>
+    <string name="filter_games">الألعاب فقط</string>
+    <string name="filter_commands">الأوامر فقط</string>
+    <string name="search_hint">بحث في الألعاب والأوامر...</string>
+    <string name="status_enabled">مفعل</string>
+    <string name="status_disabled">معطل</string>
+    <string name="login_title">تسجيل الدخول بمعرف فيسبوك</string>
+    <string name="login_msg">أدخل معرّف الفيسبوك الخاص بك للحصول على رتبتك وصلاحياتك في البوت:</string>
+    <string name="login_hint">معرّف فيسبوك (أرقام فقط)...</string>
+    <string name="login_btn">دخول وتفعيل الصلاحيات</string>
+    <string name="chat_hint">اكتب أمرك أو جوابك هنا (مثال: /جريمة)...</string>
+</resources>

@@ -412,7 +412,17 @@ async function sendTo(
   isSingleUser = false,
   includeError = false,
   allowOptOut = false,
+  options = {},
 ) {
+  // توجيه رسائل الغرف الداخلية لتطبيق الأندرويد والويب مباشرة
+  if (String(threadId).startsWith("app_") || threadId === "app_lobby") {
+    try {
+      const inAppChat = require("./inAppChat");
+      inAppChat.broadcastBotMessage(text, threadId);
+    } catch (_) {}
+    return includeError ? { ok: true } : true;
+  }
+
   const chunks = formatDisplayedCommands(text).match(/[\s\S]{1,1800}/g) || [""];
   if (isSingleUser) {
     // نفحص الحظر قبل الجدولة كي لا تُحتسب رسالة محجوبة من حصة الإرسال
@@ -432,7 +442,7 @@ async function sendTo(
       const scheduledSend = () =>
         schedule(async () => {
           // سلوك بشري: "قراءة" ثم مؤشر كتابة بمدة تتناسب مع طول الرد، قبل الإرسال الفعلي
-          await humanize.beforeSend(api, threadId, chunk);
+          await humanize.beforeSend(api, threadId, chunk, options);
           return rawSend(threadId, chunk, isSingleUser, allowOptOut);
         });
       if (isSingleUser) {
@@ -458,16 +468,25 @@ async function sendTo(
   return includeError ? { ok: true, reason: null } : true;
 }
 
-/** رسالة في المجموعة (threadID للمجموعة) */
-const sendGroup = (threadId, text) => sendTo(threadId, text);
+/** رسالة في المجموعة (threadID للمجموعة) مع دعم خيارات إضافية مثل الإرسال السريع */
+const sendGroup = (threadId, text, options) =>
+  sendTo(threadId, text, false, false, false, options);
 /** رسالة خاصة للاعب (في FCA الـ threadID للمحادثة الخاصة = userID) */
-const sendPrivate = (userId, text) => sendTo(userId, text, true);
-const sendPrivateWithResult = (userId, text) =>
-  sendTo(userId, text, true, true);
-const sendPrivateNotice = (userId, text) =>
-  sendTo(userId, text, true, false, true);
+const sendPrivate = (userId, text, options) =>
+  sendTo(userId, text, true, false, false, options);
+const sendPrivateWithResult = (userId, text, options) =>
+  sendTo(userId, text, true, true, false, options);
+const sendPrivateNotice = (userId, text, options) =>
+  sendTo(userId, text, true, false, true, options);
 
 async function sendGroupTracked(threadId, text) {
+  if (String(threadId).startsWith("app_") || threadId === "app_lobby") {
+    try {
+      const inAppChat = require("./inAppChat");
+      inAppChat.broadcastBotMessage(text, threadId);
+    } catch (_) {}
+    return "app_track_" + Date.now();
+  }
   try {
     const info = await schedule(() =>
       rawSend(threadId, formatDisplayedCommands(text)),
@@ -582,6 +601,13 @@ async function withTempImages(images, task) {
 
 /** يرسل صورة (Buffer أو مسار ملف) مع تعليق. يعيد { ok, messageId, reason, attempts } */
 async function sendImage({ threadId, source, contentType, caption, isSingleUser }) {
+  if (String(threadId).startsWith("app_") || threadId === "app_lobby") {
+    try {
+      const inAppChat = require("./inAppChat");
+      inAppChat.broadcastBotMessage(caption ? `🖼️ [صورة]\n${caption}` : "🖼️ [صورة اللعبة]", threadId);
+    } catch (_) {}
+    return { ok: true, messageId: "app_img_" + Date.now() };
+  }
   if (isSingleUser) {
     const blocked = safety.privateBlockReason(threadId);
     if (blocked) {
@@ -970,13 +996,19 @@ function reactToMessage(threadId, messageId, reaction) {
   const targetMessage = String(messageId);
   return schedule(() => {
     if (FCA_NAME === "hridoy-fca") {
-      return api.setMessageReaction(
-        reaction,
-        targetMessage,
-        targetThread,
-        undefined,
-        true,
-      );
+      try {
+        return Promise.resolve(
+          api.setMessageReaction(
+            reaction,
+            targetMessage,
+            targetThread,
+            undefined,
+            true,
+          ),
+        );
+      } catch (e) {
+        return Promise.reject(e);
+      }
     }
     return new Promise((resolve, reject) => {
       let settled = false;
@@ -1035,22 +1067,39 @@ function normalizeUserProfile(userId, data) {
         : "";
   return { name, avatarUrls: avatarUrl ? [avatarUrl] : [] };
 }
-function getUserName(userId) {
-  if (nameCache.has(userId)) return Promise.resolve(nameCache.get(userId));
-  return new Promise((resolve) => {
-    const fallback = () =>
-      resolve(`لاعب${Math.floor(Math.random() * 900 + 100)}`);
-    if (!api) return fallback();
-    api.getUserInfo(userId, (err, data) => {
-      const u = !err && normalizeUserInfo(userId, data);
-      const name = cleanName(
-        u && (u.firstName || (u.name || "").split(" ")[0]),
-      );
-      if (!name) return fallback();
-      nameCache.set(userId, name);
-      resolve(name);
-    });
-  });
+async function getUserName(userId) {
+  const cleanId = String(userId || "").trim();
+  const adminAuth = require("./adminAuth");
+  if (adminAuth.isOwner(cleanId)) return adminAuth.ownerName || "لايت";
+  if (nameCache.has(cleanId)) return nameCache.get(cleanId);
+
+  // الفحص من قاعدة البيانات (المصدر الحصري لأسماء اللاعبين المسجلين)
+  try {
+    const db = require("../database");
+    const row = await db.one(
+      `SELECT display_name FROM app_user_accounts WHERE psid = ?
+       UNION
+       SELECT display_name FROM bot_player_scores WHERE psid = ?
+       LIMIT 1`,
+      [cleanId, cleanId]
+    );
+    if (row && row.display_name && row.display_name.trim()) {
+      const name = cleanName(row.display_name);
+      nameCache.set(cleanId, name);
+      return name;
+    }
+  } catch (_) {}
+
+  try {
+    const humanReplies = require("./humanReplies");
+    const friendly = humanReplies.getFriendlyName(cleanId);
+    if (friendly && !friendly.startsWith("لاعب_")) {
+      nameCache.set(cleanId, friendly);
+      return friendly;
+    }
+  } catch (_) {}
+
+  return `لاعب_${cleanId.slice(-4)}`;
 }
 function getUserProfile(userId) {
   return new Promise((resolve, reject) => {
@@ -1260,18 +1309,7 @@ function attach() {
       const m = errText(err);
       console.error("[messenger] listen error:", m);
       if (FATAL.test(m)) {
-        if (appstateRenewer.isAutoRenewEnabled()) {
-          console.warn("[messenger] رُفضت الجلسة؛ جاري محاولة تجديد appstate تلقائياً...");
-          appstateRenewer.renewFromCredentials().then((res) => {
-            if (res && res.ok) {
-              console.log("[messenger] ✅ تم تجديد الجلسة تلقائياً! إعادة الاتصال...");
-              reconnect();
-            } else {
-              die(m);
-            }
-          }).catch(() => die(m));
-          return;
-        }
+        // عند حدوث Checkpoint أو رفض الجلسة، نمنع تسجيل الدخول التلقائي بالباسورد لتفادي قفل الحساب
         return die(m);
       }
       return reconnect();
@@ -1338,18 +1376,7 @@ async function reconnect() {
         if (e && e.loginLocked) return process.exit(1);
         // لا نعيد المحاولة على جلسة مرفوضة/حساب موقوف: يزيد الأمر سوءاً. تدخّل يدوي مطلوب.
         if (FATAL.test(m)) {
-        if (appstateRenewer.isAutoRenewEnabled()) {
-          console.warn("[messenger] رُفضت الجلسة؛ جاري محاولة تجديد appstate تلقائياً...");
-          appstateRenewer.renewFromCredentials().then((res) => {
-            if (res && res.ok) {
-              console.log("[messenger] ✅ تم تجديد الجلسة تلقائياً! إعادة الاتصال...");
-              reconnect();
-            } else {
-              die(m);
-            }
-          }).catch(() => die(m));
-          return;
-        }
+        // عند حدوث Checkpoint أو رفض الجلسة، نمنع تسجيل الدخول التلقائي بالباسورد لتفادي قفل الحساب
         return die(m);
       }
         continue;
@@ -1471,6 +1498,9 @@ module.exports = {
   getUserProfile,
   normalizeUserProfile,
   formatDisplayedCommands,
+  setCachedUserName: (userId, name) => {
+    if (userId && name) nameCache.set(String(userId), cleanName(name));
+  },
   getConnectionStatus: () => ({
     loggedIn: Boolean(api && selfId),
     listenerHealthy: healthy,

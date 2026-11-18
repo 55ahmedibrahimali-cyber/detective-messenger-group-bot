@@ -52,6 +52,26 @@ setup_dirs() {
   info "مجلد البوت: $BOT_DIR"
 }
 
+# --- 3. تثبيت cloudflared لنفق صفحة الرسم تلقائياً ---
+install_cloudflared() {
+  if command -v cloudflared &>/dev/null; then
+    info "cloudflared موجود: $(cloudflared --version 2>&1 | head -1)"
+  else
+    info "تثبيت cloudflared لصفحة الرسم..."
+    ARCH="amd64"
+    if [[ "$(uname -m)" == "aarch64" || "$(uname -m)" == "arm64" ]]; then
+      ARCH="arm64"
+    fi
+    sudo curl -fsSL -o /usr/local/bin/cloudflared "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${ARCH}" || true
+    if [[ -f /usr/local/bin/cloudflared ]]; then
+      sudo chmod +x /usr/local/bin/cloudflared
+      info "تم تثبيت cloudflared بنجاح ✅"
+    else
+      warn "تعذر تثبيت cloudflared تلقائياً؛ سيقوم البوت بتحميله عند الحاجة."
+    fi
+  fi
+}
+
 # --- 3. تثبيت الاعتماديات ---
 install_deps() {
   info "تثبيت npm packages..."
@@ -119,6 +139,34 @@ server {
         proxy_read_timeout 30s;
     }
 
+    # مسارات لعبة الرسم والصور
+    location /draw/ {
+        proxy_pass         http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header   Host \$host;
+        proxy_set_header   X-Real-IP \$remote_addr;
+        proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_read_timeout 30s;
+    }
+
+    location /api/draw {
+        proxy_pass         http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header   Host \$host;
+        proxy_set_header   X-Real-IP \$remote_addr;
+        proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_read_timeout 30s;
+    }
+
+    location /game-images/ {
+        proxy_pass         http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header   Host \$host;
+        proxy_set_header   X-Real-IP \$remote_addr;
+        proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_read_timeout 30s;
+    }
+
     # احجب كل شيء تاني
     location / {
         return 403;
@@ -152,6 +200,7 @@ fi
 info "بدء إعداد Detective Bot على AWS..."
 install_node
 setup_dirs
+install_cloudflared
 install_deps
 setup_nexca
 install_service

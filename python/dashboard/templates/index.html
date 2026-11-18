@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق ستورم بوت | Storm Bot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #0f172a;
+            --bg-card: #1e293b;
+            --border-color: #334155;
+            --accent-color: #eab308;
+            --text-color: #f8fafc;
+            --msg-bubble-me: #1e3a5f;
+            --msg-bubble-bot: #172554;
+        }
+
+        [data-theme="gold"] {
+            --bg-main: #141204;
+            --bg-card: #28230b;
+            --border-color: #63531b;
+            --accent-color: #fbbf24;
+            --text-color: #fef08a;
+            --msg-bubble-me: #453609;
+            --msg-bubble-bot: #332604;
+        }
+
+        [data-theme="cyber"] {
+            --bg-main: #050b14;
+            --bg-card: #0b192c;
+            --border-color: #00f2fe;
+            --accent-color: #00f2fe;
+            --text-color: #e0f2fe;
+            --msg-bubble-me: #0d3b66;
+            --msg-bubble-bot: #002244;
+        }
+
+        [data-theme="emerald"] {
+            --bg-main: #022c22;
+            --bg-card: #064e3b;
+            --border-color: #10b981;
+            --accent-color: #34d399;
+            --text-color: #ecfdf5;
+            --msg-bubble-me: #047857;
+            --msg-bubble-bot: #065f46;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-color);
+            font-family: system-ui, -apple-system, sans-serif;
+            transition: all 0.3s ease;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transition: all 0.25s ease;
+        }
+
+        .nav-pills .nav-link {
+            color: var(--text-color);
+            border-radius: 10px;
+            font-weight: bold;
+            padding: 8px 18px;
+            margin-right: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .nav-pills .nav-link.active {
+            background-color: var(--accent-color);
+            color: #020617 !important;
+        }
+
+        .avatar-img {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--accent-color);
+        }
+
+        .chat-box {
+            background-color: rgba(2, 6, 23, 0.8);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            height: 420px;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .log-box {
+            background-color: #020617;
+            color: #38bdf8;
+            font-family: 'Consolas', monospace;
+            font-size: 0.85rem;
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 8px;
+            padding: 1rem;
+            white-space: pre-wrap;
+            border: 1px solid #1e293b;
+        }
+
+        /* Screenshot Banner */
+        #securityBanner {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            box-shadow: 0 8px 24px rgba(239, 68, 68, 0.6);
+        }
+    </style>
+</head>
+<body class="py-3">
+    <!-- Security Alert Notification Banner -->
+    <div id="securityBanner" class="alert alert-danger alert-dismissible fade show text-center fw-bold" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        <span id="securityBannerText">تم رصد لقطة شاشة وإرسال إشعار أمني للأدمن!</span>
+        <button type="button" class="btn-close" onclick="document.getElementById('securityBanner').style.display='none'"></button>
+    </div>
+
+    <div class="container-fluid px-lg-5">
+        <!-- Top Navigation Bar -->
+        <header class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <i class="fa-solid fa-user-secret fa-2x text-warning"></i>
+                <div>
+                    <h3 class="mb-0 fw-bold">ستورم بوت | Storm Bot</h3>
+                    <small class="text-secondary">منصة الألعاب والإدارة الذكية الشاملة</small>
+                </div>
+            </div>
+
+            <!-- User Profile & Auth Widget -->
+            <div class="d-flex align-items-center gap-3">
+                <div id="userInfoWidget" class="d-flex align-items-center gap-2 bg-dark p-2 rounded-4 border border-secondary" style="cursor: pointer;" onclick="openProfileModal()">
+                    <img id="userAvatarImg" src="https://api.dicebear.com/7.x/bottts/svg?seed=detective" class="avatar-img" alt="Avatar">
+                    <div>
+                        <div class="d-flex align-items-center gap-1">
+                            <span id="userDisplayName" class="fw-bold small text-light">جاري التحقق...</span>
+                            <span id="userRoleBadge" class="badge bg-warning text-dark px-2 py-0" style="font-size: 0.65rem;">زائر</span>
+                        </div>
+                        <div class="small text-secondary" style="font-size: 0.75rem;">
+                            <span id="userPointsText">⭐ 0 نقطة</span>
+                            <span id="userTitleText" class="ms-1 text-info"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-sm btn-outline-warning" onclick="openAuthModal()">
+                    <i class="fa-solid fa-right-to-bracket me-1"></i> <span id="authBtnText">دخول / تسجيل</span>
+                </button>
+
+                <a href="/download_apk" class="btn btn-sm btn-success fw-bold px-3">
+                    <i class="fa-solid fa-mobile-screen-button me-1"></i> تحميل الـ APK
+                </a>
+            </div>
+        </header>
+
+        <!-- Main Navigation Tabs -->
+        <ul class="nav nav-pills mb-3" id="mainTab" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" id="tab-chat-btn" data-bs-toggle="pill" data-bs-target="#tab-chat">
+                    <i class="fa-solid fa-comments me-1"></i> الشات والألعاب 🎮
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="tab-private-btn" data-bs-toggle="pill" data-bs-target="#tab-private">
+                    <i class="fa-solid fa-lock me-1"></i> محادثات خاصة 🔒
+                </button>
+            </li>
+            <li class="nav-item" id="nav-item-games">
+                <button class="nav-link" id="tab-games-btn" data-bs-toggle="pill" data-bs-target="#tab-games">
+                    <i class="fa-solid fa-gamepad me-1"></i> الألعاب والأوامر ⚡
+                </button>
+            </li>
+            <li class="nav-item" id="nav-item-server">
+                <button class="nav-link" id="tab-server-btn" data-bs-toggle="pill" data-bs-target="#tab-server">
+                    <i class="fa-solid fa-server me-1"></i> لوحة السيرفر 📊
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="tab-profile-btn" data-bs-toggle="pill" data-bs-target="#tab-profile">
+                    <i class="fa-solid fa-palette me-1"></i> المظهر والملف الشخصي 🎨
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Contents -->
+        <div class="tab-content" id="mainTabContent">
+            <!-- 1. LIVE CHAT & GAMES TAB -->
+            <div class="tab-pane fade show active" id="tab-chat" role="tabpanel">
+                <div class="card p-3 p-md-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-success px-2 py-1"><i class="fa-solid fa-wifi me-1"></i> غرفة اللعب العامة</span>
+                            <span class="small text-secondary">تلعب هنا كل ألعاب البوت الـ 22 مباشرة</span>
+                        </div>
+                        <button class="btn btn-sm btn-outline-light" onclick="loadChatMessages()">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                        </button>
+                    </div>
+
+                    <!-- Quick Command Pills -->
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <button class="btn btn-sm btn-outline-info" onclick="sendQuickCommand('/جريمة')">🎮 /جريمة</button>
+                        <button class="btn btn-sm btn-outline-info" onclick="sendQuickCommand('/ذئب')">🐺 /ذئب</button>
+                        <button class="btn btn-sm btn-outline-info" onclick="sendQuickCommand('/ثقافة')">📚 /ثقافة</button>
+                        <button class="btn btn-sm btn-outline-info" onclick="sendQuickCommand('/اعلام')">🚩 /أعلام</button>
+                        <button class="btn btn-sm btn-outline-info" onclick="sendQuickCommand('/التصنيف')">🏆 /التصنيف</button>
+                        <button class="btn btn-sm btn-outline-info" onclick="sendQuickCommand('/نقاطي')">⭐ /نقاطي</button>
+                        <button class="btn btn-sm btn-outline-info" onclick="sendQuickCommand('/متجر')">🛍️ /متجر</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="sendQuickCommand('/الغاء')">❌ /إلغاء</button>
+                    </div>
+
+                    <!-- Chat Box -->
+                    <div id="chatMessages" class="chat-box mb-3">
+                        <div class="text-center text-muted small py-4">جارٍ الاتصال بغرفة الشات...</div>
+                    </div>
+
+                    <!-- Input Bar -->
+                    <form onsubmit="handleChatSubmit(event)" class="d-flex gap-2">
+                        <input type="text" id="chatInput" class="form-control bg-dark text-light border-secondary" placeholder="اكتب رسالتك أو جوابك أو أمر اللعبة هنا..." autocomplete="off" required>
+                        <button type="submit" class="btn btn-warning px-4 fw-bold text-dark">
+                            <i class="fa-solid fa-paper-plane me-1"></i> إرسال
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 2. PRIVATE CHAT TAB -->
+            <div class="tab-pane fade" id="tab-private" role="tabpanel">
+                <div class="card p-3 p-md-4">
+                    <div class="row g-3">
+                        <!-- Contact Selector -->
+                        <div class="col-md-4">
+                            <h6 class="fw-bold text-warning mb-3"><i class="fa-solid fa-user-shield me-2"></i>اختر جهة المحادثة</h6>
+                            <div class="list-group">
+                                <button type="button" class="list-group-item list-group-item-action active bg-dark border-secondary text-light d-flex align-items-center gap-2" id="contact-bot" onclick="selectPrivateContact('bot', 'المحقق (خاص البوت) 🤖')">
+                                    <i class="fa-solid fa-robot text-warning"></i>
+                                    <div>
+                                        <div class="fw-bold">المحقق (خاص البوت) 🤖</div>
+                                        <small class="text-secondary">أرسل /كود أو /معرفي أو تحدث في الخاص</small>
+                                    </div>
+                                </button>
+                            </div>
+
+                            <div class="mt-4">
+                                <label class="form-label small text-secondary">أو ابدأ محادثة خاصة مع معرّف محدد:</label>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" id="targetPrivateIdInput" class="form-control bg-dark text-light border-secondary" placeholder="معرّف اللاعب (PSID)">
+                                    <button class="btn btn-primary" onclick="startCustomPrivateChat()">فتح</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Private Messages Window -->
+                        <div class="col-md-8">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="fw-bold mb-0" id="privateContactTitle"><i class="fa-solid fa-lock text-warning me-1"></i> خاص مع: المحقق (خاص البوت) 🤖</h6>
+                                <span class="badge bg-secondary" id="privateTargetBadge">bot</span>
+                            </div>
+
+                            <div id="privateChatBox" class="chat-box mb-3">
+                                <div class="text-center text-muted small py-4">أرسل رسالة لبدء المحادثة الخاصة...</div>
+                            </div>
+
+                            <form onsubmit="handlePrivateSubmit(event)" class="d-flex gap-2">
+                                <input type="text" id="privateChatInput" class="form-control bg-dark text-light border-secondary" placeholder="اكتب رسالتك الخاصة هنا..." autocomplete="off" required>
+                                <button type="submit" class="btn btn-primary px-4 fw-bold">
+                                    <i class="fa-solid fa-paper-plane me-1"></i> إرسال
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. GAMES & COMMANDS MANAGEMENT TAB -->
+            <div class="tab-pane fade" id="tab-games" role="tabpanel">
+                <div class="card p-3 p-md-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0"><i class="fa-solid fa-gamepad me-2 text-primary"></i>إدارة الألعاب والأوامر (تحكم فوري)</h5>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-light active" id="btnFilterAll" onclick="filterItems('all')">الكل</button>
+                            <button type="button" class="btn btn-outline-light" id="btnFilterGames" onclick="filterItems('game')">الألعاب</button>
+                            <button type="button" class="btn btn-outline-light" id="btnFilterCmds" onclick="filterItems('command')">الأوامر</button>
+                        </div>
+                    </div>
+                    <p class="text-secondary small">هذه اللوحة متاحة لمالك وأدمن البوت لتشغيل وإيقاف أي لعبة أو أمر فورياً في كل المنصات.</p>
+                    
+                    <div id="gamesLoading" class="text-center py-4 text-secondary">
+                        <i class="fa-solid fa-spinner fa-spin fa-2x mb-2"></i>
+                        <p>جارٍ تحميل قائمة الألعاب والأوامر...</p>
+                    </div>
+
+                    <div id="gamesGrid" class="row g-2" style="display: none;"></div>
+                </div>
+            </div>
+
+            <!-- 4. SERVER DASHBOARD TAB (OWNER ONLY) -->
+            <div class="tab-pane fade" id="tab-server" role="tabpanel">
+                <!-- Status Cards -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="card p-3 h-100">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-secondary">حالة خدمة البوت</span>
+                                <i class="fa-solid fa-heart-pulse text-danger"></i>
+                            </div>
+                            <div>
+                                {% if is_active %}
+                                    <span class="badge bg-success status-badge"><i class="fa-solid fa-circle-check me-1"></i> شغال ومستقر (Active)</span>
+                                {% else %}
+                                    <span class="badge bg-danger status-badge"><i class="fa-solid fa-triangle-exclamation me-1"></i> متوقف (Inactive)</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="card p-3 h-100">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-secondary">استهلاك الذاكرة (RAM)</span>
+                                <i class="fa-solid fa-memory text-primary"></i>
+                            </div>
+                            <h4 class="fw-bold mb-0 text-info">{{ mem_used }} <small class="text-secondary fs-6">/ {{ mem_total }}</small></h4>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="card p-3 h-100">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-secondary">ضغط المعالج (Load)</span>
+                                <i class="fa-solid fa-microchip text-warning"></i>
+                            </div>
+                            <h4 class="fw-bold mb-0 text-light">{{ load_avg or "طبيعي" }}</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions Row -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <div class="card p-4 h-100">
+                            <h5 class="fw-bold mb-3"><i class="fa-solid fa-rotate me-2 text-warning"></i>إعادة تشغيل البوت</h5>
+                            <p class="text-secondary small">إعادة تشغيل خدمة البوت على السيرفر لتحديث الإعدادات أو تنشيط الاتصال بعد انقطاع.</p>
+                            <form action="/restart" method="POST" onsubmit="return confirm('هل أنت متأكد من إعادة تشغيل البوت؟');">
+                                <button type="submit" class="btn btn-warning w-100 py-2 fw-bold text-dark">
+                                    <i class="fa-solid fa-arrows-rotate me-1"></i> إعادة تشغيل البوت الآن
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="card p-4 h-100">
+                            <h5 class="fw-bold mb-3"><i class="fa-solid fa-key me-2 text-info"></i>تحديث جلسة الفيسبوك (appstate.json)</h5>
+                            <p class="text-secondary small">ارفع ملف appstate.json الجديد مباشرة وسيتم إرساله للسيرفر وإعادة تشغيل البوت تلقائياً.</p>
+                            <form action="/upload_appstate" method="POST" enctype="multipart/form-data">
+                                <div class="input-group">
+                                    <input type="file" name="appstate_file" accept=".json" class="form-control" required>
+                                    <button type="submit" class="btn btn-primary px-4 fw-bold">
+                                        <i class="fa-solid fa-cloud-arrow-up me-1"></i> رفع وتطبيق
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Logs Box -->
+                <div class="card p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0"><i class="fa-solid fa-terminal me-2 text-success"></i>سجلات البوت المباشرة (Live Logs)</h5>
+                        <button class="btn btn-sm btn-outline-light" onclick="window.location.reload();">
+                            <i class="fa-solid fa-arrows-rotate me-1"></i> تحديث
+                        </button>
+                    </div>
+                    <div class="log-box">{{ logs }}</div>
+                </div>
+            </div>
+
+            <!-- 5. PROFILE & THEMES TAB -->
+            <div class="tab-pane fade" id="tab-profile" role="tabpanel">
+                <div class="card p-4">
+                    <h5 class="fw-bold mb-3"><i class="fa-solid fa-palette text-warning me-2"></i>تخصيص المظهر والثيمات</h5>
+                    <p class="text-secondary small">اختر المظهر المفضل لك. سيتم حفظه ومزامنته مع حسابك عبر جميع الأجهزة.</p>
+                    
+                    <div class="row g-3 mb-4">
+                        <div class="col-6 col-md-3">
+                            <div class="card p-3 text-center border-secondary h-100" style="cursor: pointer; background: #0f172a;" onclick="setTheme('dark')">
+                                <i class="fa-solid fa-moon fa-2x mb-2 text-light"></i>
+                                <div class="fw-bold text-light">كلاسيكي داكن</div>
+                                <small class="text-secondary">Dark Slate</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="card p-3 text-center border-warning h-100" style="cursor: pointer; background: #141204;" onclick="setTheme('gold')">
+                                <i class="fa-solid fa-crown fa-2x mb-2 text-warning"></i>
+                                <div class="fw-bold text-warning">المحقق الذهبي</div>
+                                <small class="text-secondary">Gold Detective</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="card p-3 text-center border-info h-100" style="cursor: pointer; background: #050b14;" onclick="setTheme('cyber')">
+                                <i class="fa-solid fa-bolt fa-2x mb-2 text-info"></i>
+                                <div class="fw-bold text-info">سايبر نيون</div>
+                                <small class="text-secondary">Cyber Neon</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="card p-3 text-center border-success h-100" style="cursor: pointer; background: #022c22;" onclick="setTheme('emerald')">
+                                <i class="fa-solid fa-gem fa-2x mb-2 text-success"></i>
+                                <div class="fw-bold text-success">زمردي فخم</div>
+                                <small class="text-secondary">Emerald Noir</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="fw-bold mb-3"><i class="fa-solid fa-user-pen text-info me-2"></i>تعديل الصورة الشخصية والاسم</h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small text-secondary">رابط صورة الملف الشخصي (Avatar URL):</label>
+                            <input type="text" id="avatarInput" class="form-control bg-dark text-light border-secondary" placeholder="https://...">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-secondary">الاسم المستعار في التطبيق:</label>
+                            <input type="text" id="displayNameInput" class="form-control bg-dark text-light border-secondary" placeholder="الاسم...">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary mt-3 px-4 fw-bold" onclick="saveProfileChanges()">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> حفظ التغييرات
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Authentication (Login & Register) -->
+    <div class="modal fade" id="authModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-light border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-shield-cat me-2 text-warning"></i>تسجيل الدخول / إنشاء حساب</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <!-- Tabs inside modal -->
+                    <ul class="nav nav-pills nav-fill mb-3" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#modal-login">دخول بكلمة السر</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#modal-register">إنشاء حساب جديد (برمز البوت)</button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <!-- Login Form -->
+                        <div class="tab-pane fade show active" id="modal-login">
+                            <form onsubmit="handleLoginSubmit(event)">
+                                <div class="mb-3">
+                                    <label class="form-label small text-secondary">معرّف الفيسبوك (Facebook ID):</label>
+                                    <input type="text" id="loginUserId" class="form-control bg-black text-light border-secondary" placeholder="مثال: 61555344774852" required>
+                                    <small class="text-muted" style="font-size: 0.75rem;">لمعرفة معرّفك، أرسل أمر <code>/معرفي</code> للبوت في ماسنجر.</small>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small text-secondary">كلمة السر (أو رمز البوت المؤقت):</label>
+                                    <input type="password" id="loginPassword" class="form-control bg-black text-light border-secondary" placeholder="كلمة السر..." required>
+                                </div>
+                                <button type="submit" class="btn btn-warning w-100 fw-bold text-dark py-2">
+                                    <i class="fa-solid fa-right-to-bracket me-1"></i> تسجيل الدخول
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Register Form -->
+                        <div class="tab-pane fade" id="modal-register">
+                            <div class="alert alert-info py-2 small mb-3">
+                                <i class="fa-solid fa-circle-info me-1"></i>
+                                أرسل أمر <strong>/كود</strong> للبوت في الخاص لتلقي رمز التسجيل المكون من 6 أرقام.
+                            </div>
+                            <form onsubmit="handleRegisterSubmit(event)">
+                                <div class="mb-2">
+                                    <label class="form-label small text-secondary">معرّف الفيسبوك (Facebook ID):</label>
+                                    <input type="text" id="regUserId" class="form-control bg-black text-light border-secondary" placeholder="معرّفك (أرقام فقط)..." required>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small text-secondary">رمز التحقق المستلم من البوت:</label>
+                                    <input type="text" id="regCode" class="form-control bg-black text-light border-secondary" placeholder="الرمز المكون من 6 أرقام..." required>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small text-secondary">اختر كلمة سر لحسابك:</label>
+                                    <input type="password" id="regPassword" class="form-control bg-black text-light border-secondary" placeholder="4 خانات أو أكثر..." required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small text-warning fw-bold">اسمك في البوت والألعاب (إجباري *):</label>
+                                    <input type="text" id="regName" class="form-control bg-black text-light border-warning" placeholder="اكتب اسمك الذي سيخاطبك به البوت..." required>
+                                    <small class="text-secondary" style="font-size: 0.72rem;">هذا الاسم هو المصدر الوحيد الذي سيستعمله البوت لمناداتك وإعلان فوزك في الألعاب.</small>
+                                </div>
+                                <button type="submit" class="btn btn-success w-100 fw-bold py-2">
+                                    <i class="fa-solid fa-user-plus me-1"></i> إنشاء الحساب وتفعيل الصلاحيات
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // State
+        const DEFAULT_OWNER_ID = '61555344774852';
+        let currentUserId = localStorage.getItem('fb_user_id') || DEFAULT_OWNER_ID;
+        let currentUser = null;
+        let lastMsgId = 0;
+        let lastPrivateMsgId = 0;
+        let currentPrivateTarget = 'bot';
+        let allItems = [];
+        let currentFilter = 'all';
+
+        // ------------------ Auth & Profile ------------------
+        async function initAuth() {
+            try {
+                const res = await fetch('http://' + window.location.hostname + ':3000/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUserId })
+                });
+                const data = await res.json();
+                if (data.ok && data.user) {
+                    currentUser = data.user;
+                    updateUIForUser();
+                }
+            } catch (err) {
+                console.warn('Auth error:', err);
+            }
+        }
+
+        function updateUIForUser() {
+            if (!currentUser) return;
+            document.getElementById('userDisplayName').textContent = currentUser.name;
+            document.getElementById('userPointsText').textContent = '⭐ ' + (currentUser.points || 0) + ' نقطة';
+            document.getElementById('userTitleText').textContent = currentUser.title ? '«' + currentUser.title + '»' : '';
+
+            const badge = document.getElementById('userRoleBadge');
+            if (currentUser.isOwner) {
+                badge.className = 'badge bg-warning text-dark px-2 py-0';
+                badge.innerHTML = '👑 المالك';
+                document.getElementById('nav-item-server').style.display = 'block';
+                document.getElementById('nav-item-games').style.display = 'block';
+            } else if (currentUser.isAdmin) {
+                badge.className = 'badge bg-primary px-2 py-0';
+                badge.innerHTML = '🛡️ أدمن';
+                document.getElementById('nav-item-server').style.display = 'none';
+                document.getElementById('nav-item-games').style.display = 'block';
+            } else {
+                badge.className = 'badge bg-secondary px-2 py-0';
+                badge.innerHTML = '👤 لاعب';
+                document.getElementById('nav-item-server').style.display = 'none';
+                document.getElementById('nav-item-games').style.display = 'none';
+            }
+
+            if (currentUser.avatarUrl) {
+                document.getElementById('userAvatarImg').src = currentUser.avatarUrl;
+            } else {
+                document.getElementById('userAvatarImg').src = 'https://api.dicebear.com/7.x/bottts/svg?seed=' + currentUser.userId;
+            }
+
+            if (currentUser.theme) {
+                document.documentElement.setAttribute('data-theme', currentUser.theme);
+            }
+        }
+
+        function openAuthModal() {
+            new bootstrap.Modal(document.getElementById('authModal')).show();
+        }
+
+        async function handleLoginSubmit(e) {
+            e.preventDefault();
+            const uid = document.getElementById('loginUserId').value.trim();
+            const pass = document.getElementById('loginPassword').value.trim();
+
+            try {
+                const res = await fetch('http://' + window.location.hostname + ':3000/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: uid, password: pass })
+                });
+                const data = await res.json();
+                if (data.ok && data.user) {
+                    currentUser = data.user;
+                    currentUserId = currentUser.userId;
+                    localStorage.setItem('fb_user_id', currentUserId);
+                    updateUIForUser();
+                    bootstrap.Modal.getInstance(document.getElementById('authModal'))?.hide();
+                    alert('تم تسجيل الدخول بنجاح كـ: ' + currentUser.name);
+                } else {
+                    alert('فشل الدخول: ' + (data.error || 'خطأ غير معروف'));
+                }
+            } catch (err) {
+                alert('خطأ في الاتصال: ' + err.message);
+            }
+        }
+
+        async function handleRegisterSubmit(e) {
+            e.preventDefault();
+            const uid = document.getElementById('regUserId').value.trim();
+            const code = document.getElementById('regCode').value.trim();
+            const pass = document.getElementById('regPassword').value.trim();
+            const name = document.getElementById('regName').value.trim();
+
+            try {
+                const res = await fetch('http://' + window.location.hostname + ':3000/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: uid, code: code, password: pass, displayName: name })
+                });
+                const data = await res.json();
+                if (data.ok && data.user) {
+                    currentUser = data.user;
+                    currentUserId = currentUser.userId;
+                    localStorage.setItem('fb_user_id', currentUserId);
+                    updateUIForUser();
+                    bootstrap.Modal.getInstance(document.getElementById('authModal'))?.hide();
+                    alert('🎉 تم إنشاء حسابك بنجاح! مرحباً بك يا ' + currentUser.name);
+                } else {
+                    alert('فشل إنشاء الحساب: ' + (data.error || 'خطأ غير معروف'));
+                }
+            } catch (err) {
+                alert('خطأ في الاتصال: ' + err.message);
+            }
+        }
+
+        // ------------------ Themes & Profile ------------------
+        async function setTheme(themeName) {
+            document.documentElement.setAttribute('data-theme', themeName);
+            if (currentUser) {
+                try {
+                    await fetch('http://' + window.location.hostname + ':3000/api/auth/profile', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId: currentUserId, theme: themeName })
+                    });
+                } catch (_) {}
+            }
+        }
+
+        async function saveProfileChanges() {
+            const avatar = document.getElementById('avatarInput').value.trim();
+            const name = document.getElementById('displayNameInput').value.trim();
+            try {
+                const res = await fetch('http://' + window.location.hostname + ':3000/api/auth/profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUserId, avatarUrl: avatar, displayName: name })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    currentUser = data.user;
+                    updateUIForUser();
+                    alert('تم حفظ إعدادات الملف الشخصي بنجاح!');
+                }
+            } catch (err) {
+                alert('خطأ: ' + err.message);
+            }
+        }
+
+        // ------------------ Live Group Chat ------------------
+        async function loadChatMessages() {
+            const chatBox = document.getElementById('chatMessages');
+            try {
+                const res = await fetch('http://' + window.location.hostname + ':3000/api/chat/messages?since=' + lastMsgId);
+                const data = await res.json();
+                if (data.ok && Array.isArray(data.messages) && data.messages.length > 0) {
+                    if (lastMsgId === 0) chatBox.innerHTML = '';
+                    for (const m of data.messages) {
+                        if (m.id > lastMsgId) lastMsgId = m.id;
+                        appendMessageToChat(m);
+                    }
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                } else if (lastMsgId === 0 && (!data.messages || data.messages.length === 0)) {
+                    chatBox.innerHTML = '<div class="text-center text-secondary small py-4">لا توجد رسائل بعد. ابدأ اللعب أو الدردشة الآن!</div>';
+                }
+            } catch (_) {}
+        }
+
+        function appendMessageToChat(m) {
+            const chatBox = document.getElementById('chatMessages');
+            const isBot = m.isBot;
+            const isMe = String(m.senderId) === String(currentUserId);
+
+            const div = document.createElement('div');
+            div.className = 'd-flex flex-column mb-2 ' + (isBot ? 'align-items-start' : (isMe ? 'align-items-end' : 'align-items-start'));
+
+            const badgeBg = isBot ? 'bg-warning text-dark' : (m.role === 'owner' ? 'bg-warning text-dark' : (m.role === 'admin' ? 'bg-primary' : 'bg-secondary'));
+            const roleIcon = isBot ? '🤖' : (m.role === 'owner' ? '👑' : (m.role === 'admin' ? '🛡️' : '👤'));
+            const cardBg = isBot ? 'background-color: var(--msg-bubble-bot); border: 1px solid var(--border-color);' : (isMe ? 'background-color: var(--msg-bubble-me); border: 1px solid #2563eb;' : 'background-color: var(--bg-card); border: 1px solid var(--border-color);');
+
+            div.innerHTML = `
+                <div class="d-flex align-items-center gap-1 mb-1 small">
+                    <span class="badge ${badgeBg} py-0 px-2" style="font-size: 0.7rem;">${roleIcon} ${m.senderName}</span>
+                    <span class="text-secondary" style="font-size: 0.65rem;">${m.time}</span>
+                </div>
+                <div class="p-2 px-3 rounded-3 text-light" style="${cardBg} max-width: 85%; white-space: pre-wrap; font-size: 0.95rem; word-break: break-word;">${escapeHtml(m.text)}</div>
+            `;
+            chatBox.appendChild(div);
+        }
+
+        async function handleChatSubmit(e) {
+            e.preventDefault();
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = '';
+
+            try {
+                await fetch('http://' + window.location.hostname + ':3000/api/chat/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUserId, text: text })
+                });
+                loadChatMessages();
+            } catch (err) {
+                alert('فشل الإرسال: ' + err.message);
+            }
+        }
+
+        function sendQuickCommand(cmd) {
+            const input = document.getElementById('chatInput');
+            input.value = cmd;
+            input.focus();
+        }
+
+        // ------------------ Private Chat (1-on-1) ------------------
+        function selectPrivateContact(targetId, targetTitle) {
+            currentPrivateTarget = targetId;
+            document.getElementById('privateContactTitle').innerHTML = '<i class="fa-solid fa-lock text-warning me-1"></i> خاص مع: ' + targetTitle;
+            document.getElementById('privateTargetBadge').textContent = targetId;
+            lastPrivateMsgId = 0;
+            document.getElementById('privateChatBox').innerHTML = '<div class="text-center text-muted small py-4">جارٍ جلب المحادثة الخاصة...</div>';
+            loadPrivateMessages();
+        }
+
+        function startCustomPrivateChat() {
+            const targetId = document.getElementById('targetPrivateIdInput').value.trim();
+            if (!targetId || !/^\d+$/.test(targetId)) {
+                return alert('يرجى إدخال معرّف صحيح بالأرقام فقط.');
+            }
+            selectPrivateContact(targetId, 'لاعب (' + targetId + ')');
+        }
+
+        async function loadPrivateMessages() {
+            const chatBox = document.getElementById('privateChatBox');
+            try {
+                const res = await fetch(`http://${window.location.hostname}:3000/api/chat/private?userId=${currentUserId}&otherUserId=${currentPrivateTarget}&since=${lastPrivateMsgId}`);
+                const data = await res.json();
+                if (data.ok && Array.isArray(data.messages) && data.messages.length > 0) {
+                    if (lastPrivateMsgId === 0) chatBox.innerHTML = '';
+                    for (const m of data.messages) {
+                        if (m.id > lastPrivateMsgId) lastPrivateMsgId = m.id;
+                        appendPrivateMessage(m);
+                    }
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                } else if (lastPrivateMsgId === 0 && (!data.messages || data.messages.length === 0)) {
+                    chatBox.innerHTML = '<div class="text-center text-secondary small py-4">لا توجد رسائل خاصة سابقة. أرسل رسالة للبدء!</div>';
+                }
+            } catch (_) {}
+        }
+
+        function appendPrivateMessage(m) {
+            const chatBox = document.getElementById('privateChatBox');
+            const div = document.createElement('div');
+            div.className = 'd-flex flex-column mb-2 ' + (m.isMe ? 'align-items-end' : 'align-items-start');
+            const cardBg = m.isMe ? 'background-color: var(--msg-bubble-me); border: 1px solid #2563eb;' : 'background-color: var(--bg-card); border: 1px solid var(--border-color);';
+
+            div.innerHTML = `
+                <div class="d-flex align-items-center gap-1 mb-1 small">
+                    <span class="badge ${m.isMe ? 'bg-primary' : 'bg-warning text-dark'} py-0 px-2" style="font-size: 0.7rem;">${m.senderName}</span>
+                    <span class="text-secondary" style="font-size: 0.65rem;">${m.time}</span>
+                </div>
+                <div class="p-2 px-3 rounded-3 text-light" style="${cardBg} max-width: 85%; white-space: pre-wrap; font-size: 0.95rem; word-break: break-word;">${escapeHtml(m.text)}</div>
+            `;
+            chatBox.appendChild(div);
+        }
+
+        async function handlePrivateSubmit(e) {
+            e.preventDefault();
+            const input = document.getElementById('privateChatInput');
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = '';
+
+            try {
+                await fetch('http://' + window.location.hostname + ':3000/api/chat/private/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ senderId: currentUserId, recipientId: currentPrivateTarget, text: text })
+                });
+                loadPrivateMessages();
+            } catch (err) {
+                alert('فشل الإرسال: ' + err.message);
+            }
+        }
+
+        // ------------------ Games Toggle ------------------
+        async function loadGamesAndCommands() {
+            const loading = document.getElementById('gamesLoading');
+            const grid = document.getElementById('gamesGrid');
+            try {
+                const res = await fetch('http://' + window.location.hostname + ':3000/api/games');
+                const data = await res.json();
+                if (data.ok) {
+                    allItems = [
+                        ...(data.games || []).map(g => ({ ...g, type: 'game' })),
+                        ...(data.commands || []).map(c => ({ ...c, type: 'command' }))
+                    ];
+                    renderItems();
+                    loading.style.display = 'none';
+                    grid.style.display = 'flex';
+                }
+            } catch (_) {}
+        }
+
+        function filterItems(type) {
+            currentFilter = type;
+            document.getElementById('btnFilterAll').classList.toggle('active', type === 'all');
+            document.getElementById('btnFilterGames').classList.toggle('active', type === 'game');
+            document.getElementById('btnFilterCmds').classList.toggle('active', type === 'command');
+            renderItems();
+        }
+
+        function renderItems() {
+            const grid = document.getElementById('gamesGrid');
+            const filtered = allItems.filter(item => (currentFilter === 'all' || item.type === currentFilter));
+
+            grid.innerHTML = filtered.map(item => `
+                <div class="col-md-6 col-lg-4">
+                    <div class="card p-3 h-100 d-flex flex-row justify-content-between align-items-center">
+                        <div>
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <span class="badge ${item.type === 'game' ? 'bg-primary' : 'bg-warning text-dark'} px-2 py-1" style="font-size: 0.75rem;">
+                                    ${item.type === 'game' ? 'لعبة 🎮' : 'أمر ⚡'}
+                                </span>
+                                <span class="fw-bold text-light">${item.name}</span>
+                            </div>
+                            <code class="text-info small">${item.command}</code>
+                        </div>
+                        <div class="form-check form-switch m-0 ms-2">
+                            <input class="form-check-input" type="checkbox" role="switch" id="switch_${item.id}"
+                                ${item.enabled ? 'checked' : ''} onchange="toggleItem('${item.id}', this.checked)">
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function toggleItem(id, enabled) {
+            try {
+                const res = await fetch('http://' + window.location.hostname + ':3000/api/games/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, enabled })
+                });
+                const data = await res.json();
+                if (!data.ok) {
+                    alert('فشل حفظ التغيير: ' + (data.error || ''));
+                    document.getElementById('switch_' + id).checked = !enabled;
+                }
+            } catch (err) {
+                alert('خطأ: ' + err.message);
+                document.getElementById('switch_' + id).checked = !enabled;
+            }
+        }
+
+        // ------------------ Screenshot Detection & Alert ------------------
+        function notifyScreenshotTaken() {
+            const banner = document.getElementById('securityBanner');
+            banner.style.display = 'block';
+            setTimeout(() => { banner.style.display = 'none'; }, 6000);
+
+            // إرسال تنبيه للسيرفر
+            fetch('http://' + window.location.hostname + ':3000/api/security/screenshot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: currentUserId,
+                    userName: currentUser ? currentUser.name : currentUserId,
+                    screenName: document.querySelector('.nav-link.active')?.textContent.trim() || 'التطبيق'
+                })
+            }).catch(() => {});
+        }
+
+        // رصد لقطة الشاشة عبر أزرار الكيبورد
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'PrintScreen' || (e.ctrlKey && e.key === 'p')) {
+                notifyScreenshotTaken();
+            }
+        });
+
+        function escapeHtml(text) {
+            const p = document.createElement('p');
+            p.textContent = text;
+            return p.innerHTML;
+        }
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            initAuth();
+            loadChatMessages();
+            loadGamesAndCommands();
+            setInterval(loadChatMessages, 1500);
+            setInterval(() => {
+                if (document.getElementById('tab-private').classList.contains('active')) {
+                    loadPrivateMessages();
+                }
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

@@ -18,6 +18,21 @@ test("typingDurationMs يتناسب مع عدد الكلمات وضمن الحد
   _internal.reset();
 });
 
+test("typingDurationMs يتناسب طردياً مع عدد الأحرف في الرسالة", () => {
+  _internal.setRandom(() => 0.5); // jitter = 1.0 (بدون تذبذب)
+  const shortText = "رسالة قصيرة جداً"; // ~16 حرف
+  const mediumText = "هذه رسالة متوسطة الطول تحتوي على عدد أكبر من الأحرف لاختبار سرعة الكتابة"; // ~72 حرف
+  const longText = "هذه رسالة طويلة جداً ومفصلة تتضمن فقرة كاملة حتى نتحقق من أن مدة مؤشر الكتابة تتزايد بدقة وواقعية بحسب عدد الأحرف الإجمالي في الرسالة بدون تجاوز الحد الأقصى"; // ~150+ حرف
+
+  const durationShort = _internal.typingDurationMs(shortText);
+  const durationMedium = _internal.typingDurationMs(mediumText);
+  const durationLong = _internal.typingDurationMs(longText);
+
+  assert.ok(durationMedium > durationShort, "الرسالة المتوسطة تأخذ وقتاً أطول من القصيرة");
+  assert.ok(durationLong > durationMedium, "الرسالة الطويلة تأخذ وقتاً أطول من المتوسطة");
+  _internal.reset();
+});
+
 test("maybeMicroBreak يحترم الاحتمال", () => {
   process.env.HUMANIZE_MICRO_BREAK_CHANCE = "0.5";
   delete require.cache[require.resolve("./humanize")];
@@ -63,6 +78,36 @@ test("beforeSend لا يفعل شيئاً عند HUMANIZE_ENABLED=0", async () =
   await h.beforeSend({ markAsRead: () => {}, sendTypingIndicator: () => {} }, "1", "a");
   assert.equal(slept, false);
   delete process.env.HUMANIZE_ENABLED;
+  h._internal.reset();
+});
+
+test("beforeSend يستخدم الوضع السريع لإعلانات الفائز والتلميحات ويتخطى مؤشر الكتابة", async () => {
+  delete require.cache[require.resolve("./humanize")];
+  const h = require("./humanize");
+  const calls = [];
+  h._internal.setSleep(async (ms) => calls.push(["sleep", ms]));
+  h._internal.setRandom(() => 0.5);
+  const api = {
+    markAsRead: (id) => calls.push(["markAsRead", id]),
+    sendTypingIndicator: (id) => calls.push(["typing", id]),
+  };
+  // 1. رسالة تبدأ بـ ✅ (فائز)
+  await h.beforeSend(api, "123", "✅ إجابة صحيحة — نقطة لـ فلان");
+  assert.ok(calls.some((c) => c[0] === "markAsRead"));
+  assert.ok(!calls.some((c) => c[0] === "typing"));
+  assert.ok(calls.every((c) => c[0] !== "sleep" || c[1] < 150));
+
+  // 2. رسالة بخيار fast: true
+  calls.length = 0;
+  await h.beforeSend(api, "123", "نص عادي", { fast: true });
+  assert.ok(!calls.some((c) => c[0] === "typing"));
+  assert.ok(calls.every((c) => c[0] !== "sleep" || c[1] < 150));
+
+  // 3. تلميح يبدأ بـ 💡
+  calls.length = 0;
+  await h.beforeSend(api, "123", "💡 تلميح: يبدأ بحرف أ");
+  assert.ok(!calls.some((c) => c[0] === "typing"));
+
   h._internal.reset();
 });
 

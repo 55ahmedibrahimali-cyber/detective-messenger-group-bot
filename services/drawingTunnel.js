@@ -88,12 +88,68 @@ function executableFor(provider) {
     __dirname,
     "..",
     ".nexca",
-    "cloudflared.exe",
+    process.platform === "win32" ? "cloudflared.exe" : "cloudflared",
   );
   return (
     process.env.CLOUDFLARED_PATH ||
     (fs.existsSync(localExecutable) ? localExecutable : "cloudflared")
   );
+}
+
+async function ensureCloudflared() {
+  const binaryName = process.platform === "win32" ? "cloudflared.exe" : "cloudflared";
+  const localExecutable = path.join(__dirname, "..", ".nexca", binaryName);
+
+  if (fs.existsSync(localExecutable)) return localExecutable;
+
+  const sysExecutable = process.env.CLOUDFLARED_PATH || "cloudflared";
+  try {
+    const { spawnSync } = require("node:child_process");
+    const check = spawnSync(sysExecutable, ["--version"], { windowsHide: true });
+    if (check.status === 0) return sysExecutable;
+  } catch {
+    // ليس في PATH
+  }
+
+  console.log("[drawing tunnel] لم يُعثر على cloudflared؛ جاري التحميل التلقائي لنفق صفحة الرسم...");
+  const arch = process.arch === "arm64" ? "arm64" : "amd64";
+  let downloadUrl = "";
+  if (process.platform === "win32") {
+    downloadUrl = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe";
+  } else if (process.platform === "linux") {
+    downloadUrl = `https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${arch}`;
+  } else if (process.platform === "darwin") {
+    downloadUrl = `https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-${arch}`;
+  }
+
+  if (!downloadUrl) return sysExecutable;
+
+  try {
+    const nexcaDir = path.join(__dirname, "..", ".nexca");
+    if (!fs.existsSync(nexcaDir)) fs.mkdirSync(nexcaDir, { recursive: true });
+
+    const tempFile = `${localExecutable}.tmp-${Date.now()}`;
+    const response = await fetch(downloadUrl, { redirect: "follow" });
+    if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
+
+    const fileStream = fs.createWriteStream(tempFile);
+    const { Readable } = require("node:stream");
+    await new Promise((resolve, reject) => {
+      Readable.fromWeb(response.body).pipe(fileStream);
+      fileStream.on("finish", resolve);
+      fileStream.on("error", reject);
+    });
+
+    if (process.platform !== "win32") {
+      fs.chmodSync(tempFile, 0o755);
+    }
+    fs.renameSync(tempFile, localExecutable);
+    console.log("[drawing tunnel] تم تحميل cloudflared وتجهيزه بنجاح ✅");
+    return localExecutable;
+  } catch (error) {
+    console.warn(`[drawing tunnel] تعذر التحميل التلقائي لـ cloudflared: ${error.message}`);
+    return localExecutable;
+  }
 }
 
 function commandError(provider, error) {
@@ -209,6 +265,29 @@ async function waitForReachableUrl(
       // The tunnel may still be warming up; retry until the public URL becomes reachable.
     }
     await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  // فحص عبر localhost لتجاوز قيود الـ Loopback / Hairpin NAT على سيرفرات AWS و Cloud
+  try {
+    const localPort =
+      process.env.PORT ||
+      process.env.SERVER_PORT ||
+      process.env.SPY_IMAGE_PORT ||
+      3000;
+    const localRes = await fetch(
+      `http://127.0.0.1:${localPort}/draw/probe-healthcheck`,
+      {
+        method: "GET",
+        signal: AbortSignal.timeout(2000),
+      },
+    );
+    if (localRes.status >= 200 && localRes.status < 300) {
+      console.warn(
+        `[drawing tunnel] public reachability probe failed on loopback (hairpin NAT), but local server is alive. Proceeding with ${url}.`,
+      );
+      return;
+    }
+  } catch {
+    // continue to error
   }
   throw new Error(`Timed out waiting for the public drawing page to become reachable at ${url}.`);
 }
@@ -457,6 +536,7 @@ async function start(port) {
 
     if (!url) {
       try {
+        await ensureCloudflared();
         url = await withRetries(() => startProvider("cloudflare", port));
       } catch (error) {
         if (tailscaleError && tailscaleError.code !== "ENOENT") {

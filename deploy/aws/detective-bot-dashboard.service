@@ -1,0 +1,24 @@
+[Unit]
+Description=Detective Bot Dashboard (Flask) - لوحة تحكم ويب
+After=network-online.target detective-bot.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/detective-bot/python/dashboard
+
+ExecStart=/opt/detective-bot/python/.venv/bin/python3 /opt/detective-bot/python/dashboard/app.py
+
+Restart=always
+RestartSec=15s
+StartLimitIntervalSec=0
+
+EnvironmentFile=-/opt/detective-bot/.env
+Environment=PYTHONPATH=/opt/detective-bot/python/dashboard
+
+StandardOutput=append:/opt/detective-bot/python/dashboard/dashboard.log
+StandardError=append:/opt/detective-bot/python/dashboard/dashboard.log
+
+[Install]
+WantedBy=multi-user.target

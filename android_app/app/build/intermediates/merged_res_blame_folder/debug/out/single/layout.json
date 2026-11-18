@@ -1,0 +1,26 @@
+[
+    {
+        "merged": "com.detective.bot.app-mergeDebugResources-32:/layout/item_game_control.xml",
+        "source": "com.detective.bot.app-main-35:/layout/item_game_control.xml"
+    },
+    {
+        "merged": "com.detective.bot.app-mergeDebugResources-32:/layout/item_chat_message.xml",
+        "source": "com.detective.bot.app-main-35:/layout/item_chat_message.xml"
+    },
+    {
+        "merged": "C:\\Users\\moham\\.gradle\\daemon\\8.4\\com.detective.bot.app-mergeDebugResources-32:\\layout\\item_game_control.xml",
+        "source": "C:\\Users\\moham\\.gradle\\daemon\\8.4\\com.detective.bot.app-main-35:\\layout\\item_game_control.xml"
+    },
+    {
+        "merged": "C:\\Users\\moham\\.gradle\\daemon\\8.4\\com.detective.bot.app-mergeDebugResources-32:\\layout\\item_chat_message.xml",
+        "source": "C:\\Users\\moham\\.gradle\\daemon\\8.4\\com.detective.bot.app-main-35:\\layout\\item_chat_message.xml"
+    },
+    {
+        "merged": "com.detective.bot.app-mergeDebugResources-32:/layout/activity_main.xml",
+        "source": "com.detective.bot.app-main-35:/layout/activity_main.xml"
+    },
+    {
+        "merged": "C:\\Users\\moham\\.gradle\\daemon\\8.4\\com.detective.bot.app-mergeDebugResources-32:\\layout\\activity_main.xml",
+        "source": "C:\\Users\\moham\\.gradle\\daemon\\8.4\\com.detective.bot.app-main-35:\\layout\\activity_main.xml"
+    }
+]

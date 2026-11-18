@@ -11,11 +11,10 @@ Group=ubuntu
 WorkingDirectory=/opt/detective-bot
 ExecStart=/usr/bin/node /opt/detective-bot/server.js
 
-# إعادة التشغيل عند الفشل فقط (exit code != 0)
-Restart=on-failure
-RestartSec=30s
-StartLimitIntervalSec=300
-StartLimitBurst=3
+# إعادة التشغيل الدائم (24/7)
+Restart=always
+RestartSec=15s
+StartLimitIntervalSec=0
 
 # متغيرات البيئة - عدّل المسار أو استخدم EnvironmentFile
 EnvironmentFile=/opt/detective-bot/.env

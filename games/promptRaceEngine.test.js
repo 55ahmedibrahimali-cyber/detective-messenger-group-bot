@@ -198,3 +198,85 @@ test("prompt games rotate through distinct challenges before starting a new cycl
     Math.random = originals.random;
   }
 });
+
+test("prompt race engine reacts with checkmark to the first correct answer", async () => {
+  const reactions = [];
+  const originalReact = msg.reactToMessage;
+  const originalSendGroup = msg.sendGroup;
+  const originalWithTx = db.withTransaction;
+  const originalQuery = db.query;
+  const originalOne = db.one;
+  const originalUserName = msg.getUserName;
+  const originalRecordPoints = leaderboard.recordPoints;
+
+  msg.reactToMessage = async (threadId, messageId, emoji) => {
+    reactions.push({ threadId, messageId, emoji });
+    return true;
+  };
+  msg.sendGroup = async () => true;
+  msg.getUserName = async () => "لاعب";
+  leaderboard.recordPoints = async () => 1;
+  db.one = async () => null;
+  db.query = async () => ({ affectedRows: 1 });
+  db.withTransaction = async (cb) =>
+    cb(async (sql) => {
+      if (sql.includes("SELECT id FROM game_rooms")) return [];
+      if (sql.includes("SELECT prompt_index")) return [];
+      if (sql.startsWith("INSERT INTO bot_game_prompt_usage")) return { affectedRows: 1 };
+      if (sql.startsWith("INSERT INTO game_rooms")) return { insertId: 99 };
+      return [];
+    });
+
+  const engine = createPromptRaceEngine({
+    id: "react-test",
+    name: "سباق التفاعل",
+    kind: "quote",
+    startAliases: ["سباق"],
+    helpAliases: ["قواعدالسباق"],
+    prompts: [{ quote: "العلم نور", answers: ["علي بن أبي طالب"] }],
+  });
+
+  try {
+    const threadId = "thread-react";
+    await engine.handleMessage({
+      isGroup: true,
+      threadId,
+      userId: "user-1",
+      messageId: "msg-start",
+      text: "سباق",
+    });
+
+    // إجابة خاطئة -> لا تفاعل
+    await engine.handleMessage({
+      isGroup: true,
+      threadId,
+      userId: "user-2",
+      messageId: "msg-wrong",
+      text: "شخص آخر",
+    });
+    assert.equal(reactions.length, 0);
+
+    // إجابة صحيحة -> تفاعل فوري بـ ✅
+    await engine.handleMessage({
+      isGroup: true,
+      threadId,
+      userId: "user-1",
+      messageId: "msg-correct",
+      text: "علي بن ابي طالب",
+    });
+    assert.equal(reactions.length, 1);
+    assert.deepEqual(reactions[0], {
+      threadId,
+      messageId: "msg-correct",
+      emoji: "✅",
+    });
+  } finally {
+    msg.reactToMessage = originalReact;
+    msg.sendGroup = originalSendGroup;
+    db.withTransaction = originalWithTx;
+    db.query = originalQuery;
+    db.one = originalOne;
+    msg.getUserName = originalUserName;
+    leaderboard.recordPoints = originalRecordPoints;
+  }
+});

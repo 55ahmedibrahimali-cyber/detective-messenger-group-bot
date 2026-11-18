@@ -153,13 +153,36 @@ function readJsonBody(req, maxBytes) {
 
 function validSameOrigin(req) {
   const origin = req.headers.origin;
-  if (!origin) return false;
+  const host = (req.headers["x-forwarded-host"] || req.headers.host || "").toLowerCase();
+  if (!origin) {
+    const secFetchSite = req.headers["sec-fetch-site"];
+    if (secFetchSite === "same-origin" || secFetchSite === "same-site") return true;
+    const referer = req.headers.referer;
+    if (referer) {
+      try {
+        const refUrl = new URL(referer);
+        return (
+          refUrl.host.toLowerCase() === host ||
+          refUrl.hostname.toLowerCase() === host.split(":")[0]
+        );
+      } catch {
+        return false;
+      }
+    }
+    return true;
+  }
   try {
     const url = new URL(origin);
-    const localHttp =
-      url.protocol === "http:" &&
-      ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
-    return (url.protocol === "https:" || localHttp) && url.host === req.headers.host;
+    const originHost = url.host.toLowerCase();
+    const originHostname = url.hostname.toLowerCase();
+    const targetHostname = host.split(":")[0];
+    return (
+      originHost === host ||
+      originHostname === targetHostname ||
+      originHostname === "localhost" ||
+      originHostname === "127.0.0.1" ||
+      originHostname === "::1"
+    );
   } catch {
     return false;
   }
